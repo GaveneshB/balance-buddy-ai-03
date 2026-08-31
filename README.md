@@ -114,16 +114,6 @@ Design a high-fidelity mobile application interface (UI/UX) for a student produc
 
 Generate a complete, modern, responsive HTML/Tailwind CSS or React code structure (or visual wireframe components) with clean glassmorphic CSS styles (`backdrop-blur`, borders with low-opacity white/black, soft drop shadows), dark/light mode state management, and clear UI component sections.
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/5adad6c2-83d7-4123-ac20-678abbd298c2).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
 ## Development
 
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
