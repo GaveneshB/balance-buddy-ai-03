@@ -42,7 +42,8 @@ function toneFor(v: number) {
 
 function Dashboard() {
   const { mode } = usePrefs();
-  const capacity = 88;
+  const capacity = 91;
+  const recoveryModeActive = capacity >= 90;
 
   return (
     <AppShell
@@ -70,7 +71,6 @@ function Dashboard() {
         </header>
       }
     >
-      {/* Companion */}
       <GlassCard className="text-center">
         <div
           className="mx-auto flex h-44 w-44 items-center justify-center rounded-[24px]"
@@ -88,7 +88,7 @@ function Dashboard() {
           />
         </div>
         <p className="mt-3 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Companion state: Overwhelmed
+          Companion state: {recoveryModeActive ? "Exhausted" : "Overwhelmed"}
         </p>
         <div className="glass-panel mt-4 rounded-[20px] p-4 text-left">
           <p className="text-sm leading-relaxed">
@@ -96,19 +96,52 @@ function Dashboard() {
           </p>
           <div className="mt-3 flex gap-2">
             <Link
-              to="/balancer"
+              to="/chat"
               className="glow-accent inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[image:var(--gradient-accent)] px-4 text-sm font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
             >
-              <Sparkles className="h-4 w-4" /> Yes, rebalance
+              <Sparkles className="h-4 w-4" /> Open AI Chat
             </Link>
-            <button
-              type="button"
+            <Link
+              to="/balancer"
               className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-border px-4 text-sm font-medium text-foreground"
             >
-              Not now
-            </button>
+              Rebalance
+            </Link>
           </div>
         </div>
+      </GlassCard>
+
+      <GlassCard
+        as="div"
+        className={recoveryModeActive ? "border border-[var(--danger)]/40 bg-[color:var(--glass-bg)]" : ""}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <SectionTitle>Single Action Directive</SectionTitle>
+          <span
+            className="rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+            style={{
+              backgroundColor: recoveryModeActive
+                ? "color-mix(in oklab, var(--danger) 12%, transparent)"
+                : "color-mix(in oklab, var(--safe) 12%, transparent)",
+              color: recoveryModeActive ? "var(--danger)" : "var(--safe)",
+            }}
+          >
+            {recoveryModeActive ? "Recovery lock" : "Ready"}
+          </span>
+        </div>
+        <p className="text-base font-semibold leading-relaxed text-foreground">
+          Walk 3 minutes to the courtyard bench. Sit outside for 10 minutes. No reading allowed.
+        </p>
+        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+          <span>Weather: 24°C · Sunny</span>
+          <span>GPS: North quad</span>
+        </div>
+        <button
+          type="button"
+          className="mt-4 min-h-[44px] w-full rounded-2xl bg-[image:var(--gradient-warm)] text-sm font-bold text-primary-foreground"
+        >
+          {recoveryModeActive ? "Start Recovery Now" : "Begin 10-Min Reset"}
+        </button>
       </GlassCard>
 
       {mode === "adhd" && (
@@ -125,7 +158,6 @@ function Dashboard() {
         </GlassCard>
       )}
 
-      {/* 5-vector */}
       <GlassCard>
         <SectionTitle>5-Vector Capacity</SectionTitle>
         <ul className="space-y-4">

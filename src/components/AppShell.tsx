@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Scale, Plus, BarChart3, User, Moon, Sun } from "lucide-react";
+import { Home, Scale, Plus, BarChart3, User, Moon, Sun, MessageSquareText } from "lucide-react";
 import type { ReactNode } from "react";
 import { usePrefs } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ export function ThemeToggle() {
 const items = [
   { to: "/", label: "Home", icon: Home },
   { to: "/balancer", label: "Balance", icon: Scale },
+  { to: "/chat", label: "Chat", icon: MessageSquareText },
   { to: "/insights", label: "Insights", icon: BarChart3 },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
@@ -35,19 +36,19 @@ function BottomNav() {
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md px-4 pb-4"
     >
-      <div className="glass-panel relative flex items-end justify-between rounded-[24px] px-3 py-2">
+      <div className="glass-panel relative flex items-end justify-between gap-1 rounded-[24px] px-3 py-2">
         {left.map((i) => (
           <NavItem key={i.to} {...i} active={path === i.to} />
         ))}
 
         <div className="flex w-16 justify-center">
-          <button
-            type="button"
-            aria-label="Quick action: add a task or log capacity"
+          <Link
+            to="/chat"
+            aria-label="Open the BalanceAI chat assistant"
             className="glow-accent -mt-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-[image:var(--gradient-accent)] text-primary-foreground transition-transform active:scale-95"
           >
             <Plus className="h-6 w-6" />
-          </button>
+          </Link>
         </div>
 
         {right.map((i) => (
@@ -93,9 +94,11 @@ export function AppShell({
 }) {
   return (
     <div className="app-bg min-h-dvh">
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col">
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-hidden">
         {header}
-        <main className="flex-1 space-y-5 px-4 pb-36 pt-2">{children}</main>
+        <main className="flex-1 space-y-3 overflow-y-auto px-4 pb-32 pt-2 overscroll-contain scrollbar-thin">
+          {children}
+        </main>
         <BottomNav />
       </div>
     </div>

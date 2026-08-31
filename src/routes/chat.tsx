@@ -134,46 +134,42 @@ function ChatScreen() {
           </button>
         </GlassCard>
       ) : (
-        <div className="space-y-4">
-          {/* User bubble */}
+        <div className="space-y-4 pb-3">
           <div className="flex justify-end">
-            <p className="max-w-[85%] rounded-[20px] rounded-br-md bg-[image:var(--gradient-accent)] px-4 py-3 text-sm leading-relaxed text-primary-foreground">
+            <div className="max-w-[86%] rounded-[22px] rounded-br-md bg-[image:var(--gradient-accent)] px-4 py-3 text-sm leading-relaxed text-primary-foreground shadow-[0_12px_34px_-18px_var(--glow)]">
               I just got a CS301 Machine Learning Assignment due this Thursday. It’s high
               priority and takes about 6 hours.
-            </p>
+            </div>
           </div>
 
-          {/* AI processing card */}
           <GlassCard className="space-y-4 p-4">
-            <span
-              className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
-              style={{
-                backgroundColor: "color-mix(in oklab, var(--safe) 16%, transparent)",
-                color: "var(--safe)",
-              }}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Clocked in: CS301 ML Assignment (Due Thu, 6hrs)
-            </span>
+            <div className="flex items-center gap-2">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full"
+                style={{ background: "color-mix(in oklab, var(--safe) 18%, transparent)" }}
+              >
+                <CheckCircle2 className="h-4 w-4" style={{ color: "var(--safe)" }} />
+              </div>
+              <span className="text-sm font-semibold text-foreground">
+                Clocked in: CS301 ML Assignment (Due Thu, 6hrs)
+              </span>
+            </div>
 
-            <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <div className="space-y-3 rounded-2xl bg-[color:var(--glass-bg)]/90 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Live capacity update
               </p>
-              <ul className="space-y-2.5">
+              <ul className="space-y-3">
                 {gauge.map((g) => (
                   <li key={g.label}>
-                    <div className="mb-1 flex items-baseline justify-between text-xs">
-                      <span className="font-medium">{g.label}</span>
+                    <div className="mb-1.5 flex items-center justify-between text-xs">
+                      <span className="font-medium text-foreground">{g.label}</span>
                       <span className="tabular-nums text-muted-foreground">
-                        {g.from}% ➔{" "}
-                        <span style={{ color: toneFor(g.to) }} className="font-semibold">
-                          {g.to}%
-                        </span>
+                        {g.from}% → <span style={{ color: toneFor(g.to) }} className="font-semibold">{g.to}%</span>
                       </span>
                     </div>
                     <div
-                      className="h-2 w-full overflow-hidden rounded-full"
+                      className="h-2.5 w-full overflow-hidden rounded-full"
                       role="meter"
                       aria-valuenow={g.to}
                       aria-valuemin={0}
@@ -191,8 +187,8 @@ function ChatScreen() {
               </ul>
             </div>
 
-            <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <div className="space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Re-prioritised queue
               </p>
               <ol className="space-y-2">
@@ -200,10 +196,10 @@ function ChatScreen() {
                   <li
                     key={p.title}
                     className={cn(
-                      "glass-panel flex items-center gap-3 px-3 py-2.5",
-                      p.isNew && "border-2",
+                      "flex items-center gap-3 rounded-2xl border border-border/70 bg-[color:var(--glass-bg)]/70 px-3 py-2.5",
+                      p.isNew && "border-[var(--violet)]/60",
                     )}
-                    style={p.isNew ? { borderColor: "var(--violet)" } : undefined}
+                    style={p.isNew ? { boxShadow: "inset 0 0 0 1px color-mix(in oklab, var(--violet) 24%, transparent)" } : undefined}
                   >
                     <span
                       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
@@ -215,7 +211,7 @@ function ChatScreen() {
                       {i + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{p.title}</span>
+                      <span className="block truncate text-sm font-medium text-foreground">{p.title}</span>
                       <span className="block text-xs text-muted-foreground">{p.meta}</span>
                     </span>
                     {p.isNew && (
@@ -234,26 +230,24 @@ function ChatScreen() {
               </ol>
             </div>
 
-            {/* Offloader */}
             <div
-              className="glass-panel p-4"
+              className="rounded-2xl border p-4"
               style={{
-                borderColor: "var(--danger)",
+                borderColor: "color-mix(in oklab, var(--danger) 38%, var(--border))",
                 backgroundColor: "color-mix(in oklab, var(--danger) 8%, var(--glass-bg))",
               }}
             >
-              <p className="text-sm leading-relaxed">
+              <p className="text-sm leading-relaxed text-foreground">
                 Your load is now at <strong>91%</strong>. I’ve automatically grouped 2
-                non-urgent errands (<em>Grocery run</em>, <em>Club prep</em>) and suggested
-                deferring them to <strong>Saturday</strong>.
+                non-urgent errands and suggested deferring them to <strong>Saturday</strong>.
               </p>
               <button
                 type="button"
                 onClick={() => setApproved(true)}
                 disabled={approved}
                 className={cn(
-                  "glow-accent mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl px-4 text-sm font-bold text-primary-foreground transition-transform active:scale-[0.98]",
-                  approved ? "opacity-70" : "bg-[image:var(--gradient-accent)]",
+                  "mt-3 inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-2xl px-4 text-sm font-bold text-primary-foreground transition-transform active:scale-[0.98]",
+                  approved ? "opacity-80" : "bg-[image:var(--gradient-accent)]",
                 )}
                 style={approved ? { backgroundColor: "var(--safe)" } : undefined}
               >
@@ -272,8 +266,7 @@ function ChatScreen() {
         </div>
       )}
 
-      {/* Input bar */}
-      <div className="fixed inset-x-0 bottom-24 z-30 mx-auto w-full max-w-md px-4">
+      <div className="sticky bottom-0 z-20 mt-2 rounded-[22px] border border-border/70 bg-[color:var(--glass-bg)]/90 p-2 shadow-[0_-10px_25px_-20px_var(--glow)] backdrop-blur-xl">
         <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
           {chips.map(({ icon: Icon, label }) => (
             <button
@@ -320,7 +313,6 @@ function ChatScreen() {
           </button>
         </form>
       </div>
-      <div className="h-32" aria-hidden />
     </AppShell>
   );
 }

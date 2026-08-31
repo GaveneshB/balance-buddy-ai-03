@@ -10,12 +10,12 @@ export function GlassCard({
   className?: string;
   as?: "section" | "div" | "article";
 }) {
-  return <As className={cn("glass-card p-5", className)}>{children}</As>;
+  return <As className={cn("glass-card p-4 sm:p-5", className)}>{children}</As>;
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+    <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
       {children}
     </h2>
   );

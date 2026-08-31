@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Undo2, Clock, Brain, X, CalendarDays } from "lucide-react";
-import { useState } from "react";
+import { Plus, Undo2, Clock, Brain, X, CalendarDays, ShieldAlert } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AppShell, ThemeToggle } from "@/components/AppShell";
 import { GlassCard, SectionTitle } from "@/components/Glass";
 import { cn } from "@/lib/utils";
@@ -157,6 +157,16 @@ function TasksScreen() {
   const [restored, setRestored] = useState<string[]>([]);
   const [cat, setCat] = useState<(typeof categories)[number]["id"]>("mental");
   const [hours, setHours] = useState(4);
+  const [now, setNow] = useState(Date.now());
+  const [recoveryLockUntil] = useState(Date.now() + 15 * 60 * 1000);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const isRecoveryLocked = now < recoveryLockUntil;
+  const recoveryMinutesLeft = Math.max(0, Math.ceil((recoveryLockUntil - now) / 60000));
 
   const impact = Math.round(
     (categories.find((c) => c.id === cat)?.impact ?? 8) * (hours / 4) * 10,
@@ -219,6 +229,20 @@ function TasksScreen() {
         </header>
       }
     >
+      {isRecoveryLocked && (
+        <GlassCard as="div" className="border border-[var(--danger)]/40">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 h-5 w-5 text-[var(--danger)]" />
+            <div>
+              <p className="text-sm font-semibold">Recovery mode is active</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add Task is locked for {recoveryMinutesLeft} minutes to lower decision fatigue.
+              </p>
+            </div>
+          </div>
+        </GlassCard>
+      )}
+
       {filter !== "deferred" && (
         <GlassCard>
           <SectionTitle>Urgent &amp; high impact</SectionTitle>
@@ -254,17 +278,19 @@ function TasksScreen() {
         )}
       </GlassCard>
 
-      {/* FAB */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
         aria-label="Add a task"
-        className="glow-accent fixed bottom-28 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-[image:var(--gradient-accent)] text-primary-foreground transition-transform active:scale-95"
+        disabled={isRecoveryLocked}
+        onClick={() => !isRecoveryLocked && setOpen(true)}
+        className={cn(
+          "glow-accent fixed bottom-28 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-[image:var(--gradient-accent)] text-primary-foreground transition-transform active:scale-95",
+          isRecoveryLocked && "cursor-not-allowed opacity-50",
+        )}
       >
         <Plus className="h-6 w-6" />
       </button>
 
-      {/* Drawer */}
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center"
@@ -389,10 +415,14 @@ function TasksScreen() {
             <div className="space-y-2">
               <button
                 type="button"
+                disabled={isRecoveryLocked}
                 onClick={() => setOpen(false)}
-                className="glow-accent min-h-[48px] w-full rounded-2xl bg-[image:var(--gradient-accent)] text-sm font-bold text-primary-foreground"
+                className={cn(
+                  "glow-accent min-h-[48px] w-full rounded-2xl bg-[image:var(--gradient-accent)] text-sm font-bold text-primary-foreground",
+                  isRecoveryLocked && "cursor-not-allowed opacity-60",
+                )}
               >
-                Save Task
+                {isRecoveryLocked ? "Recovery lock active" : "Save Task"}
               </button>
               <button
                 type="button"
