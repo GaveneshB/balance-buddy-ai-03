@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ShieldCheck, CalendarClock, MessageSquareQuote, Pencil } from "lucide-react";
+import { ShieldCheck, CalendarClock, MessageSquareQuote, Pencil, CheckCircle2, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { AppShell, ThemeToggle } from "@/components/AppShell";
 import { GlassCard, SectionTitle } from "@/components/Glass";
+import { useAppState } from "@/lib/app-state";
 
 export const Route = createFileRoute("/balancer")({
   head: () => ({
@@ -23,14 +24,26 @@ export const Route = createFileRoute("/balancer")({
   component: Balancer,
 });
 
-const offloaded = [
-  { task: "Grocery Shopping", why: "Non-urgent errand", when: "Deferred to Saturday" },
-  { task: "Club Prep Deck", why: "No hard deadline", when: "Deferred to Sunday 2pm" },
-  { task: "Gym — leg day", why: "Physical load low priority", when: "Moved to Friday" },
-];
+export function Balancer() {
+  const {
+    overallCapacity,
+    offloadedTasks,
+    autoDeclineDraft,
+    updateDeclineDraft,
+    approveRebalance,
+    rebalanced,
+    undoDeferral,
+  } = useAppState();
 
-function Balancer() {
-  const [approved, setApproved] = useState(false);
+  const [isEditingDraft, setIsEditingDraft] = useState(false);
+  const [draftInput, setDraftInput] = useState(autoDeclineDraft.text);
+
+  const isHighLoad = overallCapacity >= 85;
+
+  function handleSaveDraft() {
+    updateDeclineDraft(draftInput);
+    setIsEditingDraft(false);
+  }
 
   return (
     <AppShell
@@ -40,73 +53,117 @@ function Balancer() {
             <span
               className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
               style={{
-                backgroundColor: "color-mix(in oklab, var(--danger) 14%, transparent)",
-                color: "var(--danger)",
+                backgroundColor: `color-mix(in oklab, ${isHighLoad ? "var(--danger)" : "var(--safe)"} 14%, transparent)`,
+                color: isHighLoad ? "var(--danger)" : "var(--safe)",
               }}
             >
-              <ShieldCheck className="h-3.5 w-3.5" /> 88% Load Detected
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {overallCapacity}% Load {isHighLoad ? "Intervention Triggered" : "Normal"}
             </span>
             <h1 className="mt-2 text-2xl font-bold leading-tight tracking-tight">
-              Capacity Shield Activated
+              Autonomous Workload Balancer
             </h1>
           </div>
           <ThemeToggle />
         </header>
       }
     >
+      {/* Offloaded & Deferred Tasks */}
       <GlassCard>
-        <SectionTitle>Offloaded tasks</SectionTitle>
-        <ul className="space-y-3">
-          {offloaded.map((o) => (
-            <li key={o.task} className="glass-panel flex items-start gap-3 p-4">
-              <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-accent-foreground" />
-              <div>
-                <p className="text-sm font-semibold">{o.task}</p>
-                <p className="text-xs text-muted-foreground">{o.why}</p>
-                <p
-                  className="mt-1 text-xs font-semibold"
-                  style={{ color: "var(--safe)" }}
+        <SectionTitle>Auto-Grouped / Offloaded Tasks</SectionTitle>
+        {offloadedTasks.length > 0 ? (
+          <ul className="space-y-3">
+            {offloadedTasks.map((o) => (
+              <li key={o.id} className="glass-panel flex items-start justify-between gap-3 p-4">
+                <div className="flex items-start gap-3 min-w-0">
+                  <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-accent-foreground" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{o.title}</p>
+                    <p className="text-xs text-muted-foreground">{o.course} · {o.hours}</p>
+                    <p className="mt-1 text-xs font-semibold text-[var(--safe)]">
+                      {o.due}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => undoDeferral(o.id)}
+                  aria-label={`Undo deferral of ${o.title}`}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-foreground"
                 >
-                  {o.when}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No tasks deferred currently. Your schedule is optimized.
+          </p>
+        )}
       </GlassCard>
 
+      {/* Auto-Decline Draft Template */}
       <GlassCard>
-        <SectionTitle>Auto-decline draft</SectionTitle>
-        <div className="glass-panel p-4">
+        <div className="flex items-center justify-between">
+          <SectionTitle>Auto-decline draft template</SectionTitle>
+          <button
+            type="button"
+            onClick={() => setIsEditingDraft((e) => !e)}
+            className="flex items-center gap-1 text-xs font-semibold text-accent-foreground"
+          >
+            <Pencil className="h-3.5 w-3.5" /> {isEditingDraft ? "Cancel" : "Edit"}
+          </button>
+        </div>
+
+        <div className="glass-panel mt-3 p-4">
           <MessageSquareQuote className="h-5 w-5 text-accent-foreground" />
-          <p className="mt-2 text-sm italic leading-relaxed">
-            “Hey! I’m completely at capacity with exams this week, so I won’t be able to
-            make it to tonight’s dinner. Let’s reconnect next week!”
-          </p>
+          {isEditingDraft ? (
+            <div className="mt-2 space-y-3">
+              <textarea
+                value={draftInput}
+                onChange={(e) => setDraftInput(e.target.value)}
+                className="w-full min-h-[90px] rounded-xl border border-border bg-transparent p-2.5 text-sm outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                className="min-h-[36px] rounded-xl bg-[image:var(--gradient-accent)] px-3 text-xs font-bold text-primary-foreground"
+              >
+                Save Template
+              </button>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm italic leading-relaxed">
+              “{autoDeclineDraft.text}”
+            </p>
+          )}
           <p className="mt-3 text-xs text-muted-foreground">
-            To: Study group · Dinner tonight, 8:00 PM
+            Recipient: {autoDeclineDraft.to}
           </p>
         </div>
       </GlassCard>
 
+      {/* 1-Tap Execution */}
       <div className="space-y-3">
         <button
           type="button"
-          onClick={() => setApproved(true)}
-          className="glow-accent min-h-[52px] w-full rounded-2xl bg-[image:var(--gradient-accent)] text-base font-bold text-primary-foreground transition-transform active:scale-[0.98]"
+          onClick={() => approveRebalance()}
+          disabled={rebalanced && !isHighLoad}
+          className="glow-accent min-h-[52px] w-full rounded-2xl bg-[image:var(--gradient-accent)] text-base font-bold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-75"
         >
-          {approved ? "Rebalanced ✓ Load now 61%" : "Approve & Rebalance (1-Tap)"}
-        </button>
-        <button
-          type="button"
-          className="inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border border-border text-sm font-semibold"
-        >
-          <Pencil className="h-4 w-4" /> Customize
+          {rebalanced ? (
+            <span className="flex items-center justify-center gap-2">
+              <CheckCircle2 className="h-5 w-5" /> Rebalanced ✓ Load now {overallCapacity}%
+            </span>
+          ) : (
+            "Approve & Rebalance (1-Tap)"
+          )}
         </button>
         <p className="text-center text-xs text-muted-foreground" aria-live="polite">
-          {approved
-            ? "3 tasks deferred and 1 decline sent. Recovery window booked 7–9pm."
-            : "Nothing is sent until you approve."}
+          {rebalanced
+            ? "Tasks deferred and decline message queued. Recovery window active."
+            : "Nothing is changed until you approve."}
         </p>
       </div>
     </AppShell>
