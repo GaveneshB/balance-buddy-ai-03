@@ -12,7 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportRuntimeError } from "../lib/runtime-error-reporting";
 import { PrefsProvider } from "../lib/prefs";
-
+import { AppStateProvider } from "../lib/app-state";
 
 function NotFoundComponent() {
   return (
@@ -130,8 +130,10 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <PrefsProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <AppStateProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </AppStateProvider>
       </PrefsProvider>
     </QueryClientProvider>
   );
