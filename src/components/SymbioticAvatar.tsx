@@ -11,7 +11,7 @@ export function getMascotMood(capacity: number): {
   color: string;
   quote: string;
 } {
-  if (capacity <= 45) {
+  if (capacity <= 29) {
     return {
       mood: "happy",
       label: "Ecstatic & Energized",
@@ -20,7 +20,7 @@ export function getMascotMood(capacity: number): {
       quote: "“I’m feeling super energized! Let’s crush some goals today!”",
     };
   }
-  if (capacity <= 65) {
+  if (capacity >= 30 && capacity <= 44) {
     return {
       mood: "balanced",
       label: "Happy & Balanced",
@@ -29,7 +29,7 @@ export function getMascotMood(capacity: number): {
       quote: "“Your capacity is nicely balanced. Smooth sailing ahead.”",
     };
   }
-  if (capacity <= 84) {
+  if (capacity >= 45 && capacity <= 69) {
     return {
       mood: "focused",
       label: "Focused & Busy",
@@ -38,7 +38,7 @@ export function getMascotMood(capacity: number): {
       quote: "“Workload is picking up. I’m staying sharp and focused.”",
     };
   }
-  if (capacity <= 89) {
+  if (capacity >= 70 && capacity <= 84) {
     return {
       mood: "stressed",
       label: "Stressed & Overloaded",

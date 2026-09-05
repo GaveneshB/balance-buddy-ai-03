@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles, ArrowRight, ShieldAlert, SlidersHorizontal, Play, Pause, RotateCcw, Check } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Sparkles, ArrowRight, SlidersHorizontal } from "lucide-react";
+import { useState, useEffect } from "react";
 import { AppShell, ThemeToggle } from "@/components/AppShell";
 import { CheckInModal } from "@/components/CheckInModal";
 import { GlassCard, SectionTitle } from "@/components/Glass";
 import { SymbioticAvatar, getMascotMood } from "@/components/SymbioticAvatar";
 import { useAppState, type VectorKey } from "@/lib/app-state";
 import { usePrefs } from "@/lib/prefs";
-import { TaskOffloader } from './TaskOffLoader';
+import { TaskOffloader } from "../components/TaskOffLoader";
+import { upsertTodayScore } from "@/lib/metrics-db";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -37,13 +38,27 @@ const vectorDetails: { key: VectorKey; label: string }[] = [
   { key: "errands", label: "Errands" },
 ];
 
-// Helper: Evaluates 1 to 5 scale (or translates 0-100 down to 1-5)
 function toneForLevel(level: number) {
-  if (level >= 5) return { color: "var(--danger)", text: "Overloaded" };
-  if (level === 4) return { color: "ff863a", text: "Heavy" };
+  if (level >= 5) return { color: "var(--danger)", text: "Critical" };
+  if (level === 4) return { color: "#ff863a", text: "Heavy" };
   if (level === 3) return { color: "#eab308", text: "Moderate" };
   if (level === 2) return { color: "var(--safe)", text: "Light" };
   return { color: "#3dcd00", text: "Minimal" };
+}
+
+// Universal Score 5-Tier Condition
+function getCapacityStatus(score: number) {
+  if (score >= 85) {
+    return { label: "High Load, High Pressure", color: "var(--danger)" };
+  } else if (score >= 70) {
+    return { label: "Feeling The Stress", color: "#ff863a" };
+  } else if (score >= 45) {
+    return { label: "Focused", color: "#eab308" };
+  } else if (score >= 30) {
+    return { label: "Light Stress", color: "var(--safe)" };
+  } else {
+    return { label: "Minimal Stress", color: "#3dcd00" };
+  }
 }
 
 function Dashboard() {
@@ -51,31 +66,18 @@ function Dashboard() {
   const {
     vectors,
     overallCapacity,
-    recoveryModeActive,
     userProfile,
-    contextInfo,
     earnFocusPoints,
     focusPoints,
   } = useAppState();
 
   const [checkInOpen, setCheckInOpen] = useState(false);
-  const [timerActive, setTimerActive] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(600); // 10 minutes reset timer
-  const [completedReset, setCompletedReset] = useState(false);
 
   useEffect(() => {
-    let interval: any;
-    if (timerActive && secondsLeft > 0) {
-      interval = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
-    } else if (secondsLeft === 0) {
-      setTimerActive(false);
-      setCompletedReset(true);
-    }
-    return () => clearInterval(interval);
-  }, [timerActive, secondsLeft]);
+    upsertTodayScore(overallCapacity);
+  }, [overallCapacity]);
 
-  const timerMin = Math.floor(secondsLeft / 60);
-  const timerSec = secondsLeft % 60;
+  const status = getCapacityStatus(overallCapacity);
 
   return (
     <AppShell
@@ -84,7 +86,7 @@ function Dashboard() {
           <div>
             <p className="text-xs font-semibold text-muted-foreground">
               {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
+                weekday: "short",
                 day: "numeric",
                 month: "long",
               })}
@@ -93,23 +95,23 @@ function Dashboard() {
             <span
               className="mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
               style={{
-                borderColor: overallCapacity >= 85 ? "var(--danger)" : "var(--safe)",
-                color: overallCapacity >= 85 ? "var(--danger)" : "var(--safe)",
-                backgroundColor: `color-mix(in oklab, ${overallCapacity >= 85 ? "var(--danger)" : "var(--safe)"} 12%, transparent)`,
+                borderColor: status.color,
+                color: status.color,
+                backgroundColor: `color-mix(in oklab, ${status.color} 12%, transparent)`,
               }}
             >
               <span
                 className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: overallCapacity >= 85 ? "var(--danger)" : "var(--safe)" }}
+                style={{ backgroundColor: status.color }}
               />
-              {overallCapacity}% Overall Stress · {overallCapacity >= 85 ? "High Load Detected" : "Balanced"}
+              {overallCapacity}% Overall Stress · {status.label}
             </span>
           </div>
           <ThemeToggle />
         </header>
       }
     >
-      {/* Symbiotic Companion Card */}
+      {/* 1. Symbiotic Companion Card */}
       <GlassCard className="text-center">
         <SymbioticAvatar capacity={overallCapacity} size="md" className="mx-auto" />
         <div className="glass-panel mt-4 rounded-[20px] p-4 text-left">
@@ -133,75 +135,12 @@ function Dashboard() {
         </div>
       </GlassCard>
 
-      {/* Single Action Directive (Recovery Mode) */}
-      <GlassCard
-        as="div"
-        className={recoveryModeActive ? "border-2 border-[var(--danger)]/50 bg-[color:var(--glass-bg)]" : ""}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <SectionTitle>Single Action Directive</SectionTitle>
-          <span
-            className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
-            style={{
-              backgroundColor: recoveryModeActive
-                ? "color-mix(in oklab, var(--danger) 16%, transparent)"
-                : "color-mix(in oklab, var(--safe) 16%, transparent)",
-              color: recoveryModeActive ? "var(--danger)" : "var(--safe)",
-            }}
-          >
-            {recoveryModeActive ? "Recovery Lock Active" : "Ready"}
-          </span>
-        </div>
+      {/* 2. Task Offloader */}
+      <div className="pt-1">
+        <TaskOffloader />
+      </div>
 
-        <p className="text-base font-semibold leading-relaxed text-foreground">
-          {contextInfo.directive}
-        </p>
-
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Weather: {contextInfo.weather}</span>
-          <span>GPS: {contextInfo.gps}</span>
-        </div>
-
-        {/* 10-Minute Reset Interactive Timer */}
-        <div className="glass-panel mt-4 flex items-center justify-between p-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Recovery Timer
-            </p>
-            <p className="text-lg font-bold tabular-nums">
-              {String(timerMin).padStart(2, "0")}:{String(timerSec).padStart(2, "0")}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {!completedReset ? (
-              <button
-                type="button"
-                onClick={() => setTimerActive((a) => !a)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-[image:var(--gradient-warm)] text-white shadow-sm active:scale-95"
-              >
-                {timerActive ? <Pause className="h-4.5 w-4.5" /> : <Play className="h-4.5 w-4.5" />}
-              </button>
-            ) : (
-              <span className="flex items-center gap-1 text-xs font-bold text-[var(--safe)]">
-                <Check className="h-4 w-4" /> Reset Complete!
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setTimerActive(false);
-                setSecondsLeft(600);
-                setCompletedReset(false);
-              }}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-muted-foreground"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* ADHD Micro-action Card */}
+      {/* 3. ADHD Micro-action Card */}
       {mode === "adhd" && (
         <GlassCard className="border-2 border-[var(--violet)]/40" as="div">
           <div className="flex items-center justify-between">
@@ -222,7 +161,7 @@ function Dashboard() {
         </GlassCard>
       )}
 
-      {/* 5-Vector Capacity Gauge (1-5 Scale) */}
+      {/* 4. 5-Vector Capacity Gauge (1-5 Scale) */}
       <GlassCard>
         <div className="flex items-center justify-between">
           <SectionTitle>5-Vector Capacity Gauge</SectionTitle>
@@ -238,7 +177,6 @@ function Dashboard() {
         <ul className="mt-4 space-y-4">
           {vectorDetails.map(({ key, label }) => {
             const rawVal = vectors[key];
-            // If rawVal is already 1-5, use it; if it's 0-100, normalize it to 1-5
             const level = rawVal <= 5 ? rawVal : Math.min(5, Math.max(1, Math.ceil(rawVal / 20)));
             const tone = toneForLevel(level);
             const percentage = (level / 5) * 100;
@@ -278,11 +216,6 @@ function Dashboard() {
           Open Autonomous Capacity Shield <ArrowRight className="h-4 w-4" />
         </Link>
       </GlassCard>
-
-      {/* Dynamic Task Offloader */}
-      <div className="mt-6">
-        <TaskOffloader />
-      </div>
 
       <CheckInModal open={checkInOpen} onClose={() => setCheckInOpen(false)} />
     </AppShell>
