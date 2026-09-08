@@ -11,6 +11,14 @@ const vectorLabels: { key: VectorKey; label: string; desc: string }[] = [
   { key: "errands", label: "Errands & Tasks", desc: "Groceries, chores, admin work" },
 ];
 
+const SCALE_LEVELS = [
+  { value: 1, label: "Minimal", color: "#3dcd00" },
+  { value: 2, label: "Light", color: "var(--safe)" },
+  { value: 3, label: "Moderate", color: "#eab308" },
+  { value: 4, label: "Heavy", color: "#ff863a" },
+  { value: 5, label: "Critical", color: "var(--danger)" },
+];
+
 export function CheckInModal({
   open,
   onClose,
@@ -52,7 +60,7 @@ export function CheckInModal({
             <span className="rounded-full bg-accent/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent-foreground">
               5-Second Check-In
             </span>
-            <h2 className="mt-1 text-lg font-bold">How are you feeling right now?</h2>
+            <h2 className="mt-1 text-lg font-bold">Quick Rating (1 - 5)</h2>
           </div>
           <button
             type="button"
@@ -66,34 +74,56 @@ export function CheckInModal({
 
         <div className="space-y-4 pt-1">
           {vectorLabels.map(({ key, label, desc }) => {
-            const val = localVectors[key];
-            const color =
-              val >= 85 ? "var(--danger)" : val >= 65 ? "var(--warn)" : "var(--safe)";
+            const rawVal = localVectors[key];
+            // Normalize current value into 1-5 scale
+            const currentLevel = rawVal <= 5 ? rawVal : Math.min(5, Math.max(1, Math.ceil(rawVal / 20)));
+            const activeScale = SCALE_LEVELS.find((s) => s.value === currentLevel) ?? SCALE_LEVELS[0]!;
+
             return (
               <div key={key} className="glass-panel p-3">
                 <div className="flex items-baseline justify-between text-xs font-semibold">
                   <span>{label}</span>
-                  <span style={{ color }}>{val}%</span>
+                  <span style={{ color: activeScale.color }}>
+                    {activeScale.value}/5 · {activeScale.label}
+                  </span>
                 </div>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">{desc}</p>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={val}
-                  onChange={(e) =>
-                    setLocalVectors((prev) => ({
-                      ...prev,
-                      [key]: Number(e.target.value),
-                    }))
-                  }
-                  aria-label={`${label} percentage slider`}
-                  className="mt-2.5 h-2 w-full cursor-pointer appearance-none rounded-full"
-                  style={{
-                    backgroundColor: "var(--muted)",
-                    accentColor: color,
-                  }}
-                />
+
+                {/* 1 - 5 Linear Scale Buttons */}
+                <div className="mt-3 grid grid-cols-5 gap-1.5">
+                  {SCALE_LEVELS.map((level) => {
+                    const isSelected = currentLevel === level.value;
+                    return (
+                      <button
+                        key={level.value}
+                        type="button"
+                        onClick={() =>
+                          setLocalVectors((prev) => ({
+                            ...prev,
+                            // Saves 1-5 mapped to 20-100 percentage so everything stays compatible
+                            [key]: level.value * 20,
+                          }))
+                        }
+                        className={cn(
+                          "flex flex-col items-center justify-center py-2 rounded-xl text-xs font-bold border transition-all active:scale-95",
+                          isSelected
+                            ? "border-transparent text-white shadow-sm"
+                            : "border-border bg-card/40 text-muted-foreground hover:border-accent"
+                        )}
+                        style={
+                          isSelected
+                            ? { backgroundColor: level.color }
+                            : undefined
+                        }
+                      >
+                        <span>{level.value}</span>
+                        <span className="text-[9px] font-normal opacity-85">
+                          {level.label.slice(0, 3)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
