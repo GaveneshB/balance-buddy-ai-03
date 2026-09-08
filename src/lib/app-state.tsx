@@ -24,7 +24,7 @@ export type TaskItem = {
   weight: number;
   cat: TaskCategory;
   tone: string;
-  isOffloaded?: boolean;
+  isOffloaded?: boolean | undefined;
 };
 
 export type AiAction =
@@ -32,14 +32,14 @@ export type AiAction =
       type: "ADD_TASK";
       payload: {
         title: string;
-        course?: string;
-        due?: string;
-        hours?: number;
-        cat?: TaskCategory;
+        course?: string | undefined;
+        due?: string | undefined;
+        hours?: number | undefined;
+        cat?: TaskCategory | undefined;
       };
     }
-  | { type: "REBALANCE"; payload?: { reason?: string } }
-  | { type: "TRIGGER_RECOVERY"; payload?: { durationMinutes?: number } };
+  | { type: "REBALANCE"; payload?: { reason?: string | undefined } | undefined }
+  | { type: "TRIGGER_RECOVERY"; payload?: { durationMinutes?: number | undefined } | undefined };
 
 export type AppStateContextType = {
   vectors: VectorState;
@@ -64,16 +64,18 @@ export type AppStateContextType = {
   setBaseline: (key: VectorKey, val: number) => void;
   addTask: (taskInput: {
     title: string;
-    course?: string;
-    due?: string;
-    hours?: number;
-    cat?: TaskCategory;
+    course?: string | undefined;
+    due?: string | undefined;
+    hours?: number | undefined;
+    cat?: TaskCategory | undefined;
   }) => TaskItem;
   rebalanceWeek: () => void;
   approveRebalance: () => void;
   undoDeferral: (taskId: string) => void;
   updateDeclineDraft: (text: string) => void;
   toggleCalendarSync: () => void;
+  setClockedInTask: (task: TaskItem | null) => void;
+  completeTask: (taskId: string) => void;
   earnFocusPoints: (pts: number) => void;
   executeAiAction: (action: AiAction) => string;
 };
@@ -206,7 +208,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const [tasks, setTasks] = useState<TaskItem[]>(initialUrgentTasks);
   const [offloadedTasks, setOffloadedTasks] = useState<TaskItem[]>(initialOffloadedTasks);
-  const [clockedInTask, setClockedInTask] = useState<TaskItem | null>(initialUrgentTasks[0]);
+  const [clockedInTask, setClockedInTask] = useState<TaskItem | null>(initialUrgentTasks[0] ?? null);
   const [rebalanced, setRebalanced] = useState(false);
   const [calendarSynced, setCalendarSynced] = useState(true);
   const [focusPoints, setFocusPoints] = useState(40);
@@ -219,32 +221,42 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     text: "Hey! I’m completely at capacity with exams and assignments this week, so I won’t be able to make it to tonight’s dinner. Let’s reconnect next week!",
   });
 
-  const userProfile = useMemo(
-    () => ({
-      name: "Dhanesh Kumar",
-      university: "Tech University",
-      email: "dhanesh.k@techuni.edu",
-    }),
-    [],
-  );
+  const [userProfile] = useState({
+    name: "Dhanesh Kumar",
+    university: "Tech University · Year 3 CS",
+    email: "dhanesh.k@student.techuni.edu",
+  });
 
-  const contextInfo = useMemo(
-    () => ({
-      gps: "North quad courtyard",
-      weather: "24°C · Sunny",
-      directive: "Walk 3 minutes to the courtyard bench. Sit outside for 10 minutes. No reading allowed.",
-    }),
-    [],
-  );
+  const [contextInfo] = useState({
+    gps: "Campus Library · 3rd Floor Quiet Zone",
+    weather: "Rainy · 18°C",
+    directive: "Single focus: Complete 1 hour of CS301 then 10-min hydration walk.",
+  });
+
+  // Load baselines from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("balanceai:baselines");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") {
+            setBaselines((prev) => ({ ...prev, ...parsed }));
+          }
+        } catch {}
+      }
+    }
+  }, []);
+
+  // Save baselines
+  useEffect(() => {
+    localStorage.setItem("balanceai:baselines", JSON.stringify(baselines));
+  }, [baselines]);
 
   // Sync to local storage
   useEffect(() => {
     localStorage.setItem("balanceai:vectors", JSON.stringify(vectors));
   }, [vectors]);
-
-  useEffect(() => {
-    localStorage.setItem("balanceai:baselines", JSON.stringify(baselines));
-  }, [baselines]);
 
   // Real-time minute timer for recovery countdown
   useEffect(() => {
@@ -275,10 +287,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const addTask = useCallback(
     (input: {
       title: string;
-      course?: string;
-      due?: string;
-      hours?: number;
-      cat?: TaskCategory;
+      course?: string | undefined;
+      due?: string | undefined;
+      hours?: number | undefined;
+      cat?: TaskCategory | undefined;
     }): TaskItem => {
       const cat = input.cat ?? "mental";
       const hoursNum = input.hours ?? 4;
@@ -415,6 +427,23 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [addTask, rebalanceWeek],
   );
 
+  const completeTask = useCallback((taskId: string) => {
+    setTasks((prev) => {
+      const found = prev.find((t) => t.id === taskId);
+      if (found) {
+        setVectors((vecs) => ({
+          ...vecs,
+          mental: Math.max(15, vecs.mental - Math.round(found.hoursNum * 3)),
+          time: Math.max(15, vecs.time - Math.round(found.hoursNum * 3)),
+        }));
+        setFocusPoints((pts) => pts + 25);
+      }
+      const remaining = prev.filter((t) => t.id !== taskId);
+      setClockedInTask((curr) => (curr?.id === taskId ? (remaining[0] ?? null) : curr));
+      return remaining;
+    });
+  }, []);
+
   const value = useMemo(
     () => ({
       vectors,
@@ -427,6 +456,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       tasks,
       offloadedTasks,
       clockedInTask,
+      setClockedInTask,
+      completeTask,
       autoDeclineDraft,
       rebalanced,
       calendarSynced,
@@ -456,6 +487,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       tasks,
       offloadedTasks,
       clockedInTask,
+      setClockedInTask,
+      completeTask,
       autoDeclineDraft,
       rebalanced,
       calendarSynced,

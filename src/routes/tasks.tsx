@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Undo2, Clock, Brain, X, CalendarDays, ShieldAlert, Sparkles } from "lucide-react";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { Plus, Undo2, Clock, Brain, X, CalendarDays, ShieldAlert, Sparkles, Radio } from "lucide-react";
 import { useState } from "react";
 import { AppShell, ThemeToggle } from "@/components/AppShell";
 import { GlassCard, SectionTitle } from "@/components/Glass";
@@ -43,7 +43,17 @@ const categoryImpacts: { id: TaskCategory; label: string; baseImpact: number }[]
   { id: "errands", label: "Errands", baseImpact: 4 },
 ];
 
-function TaskCard({ task, muted, onUndo }: { task: TaskItem; muted?: boolean; onUndo?: () => void }) {
+function TaskCard({
+  task,
+  muted,
+  onUndo,
+  onSprint,
+}: {
+  task: TaskItem;
+  muted?: boolean | undefined;
+  onUndo?: (() => void) | undefined;
+  onSprint?: (() => void) | undefined;
+}) {
   return (
     <li
       className={cn("glass-panel flex items-start gap-3 p-4", muted && "opacity-70")}
@@ -76,6 +86,17 @@ function TaskCard({ task, muted, onUndo }: { task: TaskItem; muted?: boolean; on
           </span>
         </div>
       </div>
+      {onSprint && !muted && (
+        <button
+          type="button"
+          onClick={onSprint}
+          title="Launch Micro-Sprint with Companion"
+          className="flex h-10 items-center gap-1 shrink-0 rounded-xl bg-[image:var(--gradient-warm)] px-2.5 text-xs font-bold text-primary-foreground shadow-sm transition-transform active:scale-95"
+        >
+          <Radio className="h-3.5 w-3.5 animate-pulse" />
+          <span>Sprint</span>
+        </button>
+      )}
       {onUndo && (
         <button
           type="button"
@@ -91,10 +112,12 @@ function TaskCard({ task, muted, onUndo }: { task: TaskItem; muted?: boolean; on
 }
 
 export function TasksScreen() {
+  const router = useRouter();
   const {
     tasks,
     offloadedTasks,
     clockedInTask,
+    setClockedInTask,
     overallCapacity,
     isRecoveryLocked,
     recoveryMinutesLeft,
@@ -180,6 +203,12 @@ export function TasksScreen() {
                   {clockedInTask.title} · Due {clockedInTask.due} · {clockedInTask.hours}
                 </p>
               </div>
+              <Link
+                to="/sprint"
+                className="glow-warm shrink-0 flex items-center gap-1 rounded-xl bg-[image:var(--gradient-warm)] px-2.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm active:scale-95"
+              >
+                <Radio className="h-3.5 w-3.5 animate-pulse" /> Focus Sprint
+              </Link>
             </div>
           )}
 
@@ -227,7 +256,14 @@ export function TasksScreen() {
           {visibleUrgent.length ? (
             <ul className="space-y-3">
               {visibleUrgent.map((t) => (
-                <TaskCard key={t.id} task={t} />
+                <TaskCard
+                  key={t.id}
+                  task={t}
+                  onSprint={() => {
+                    setClockedInTask(t);
+                    router.navigate({ to: "/sprint" });
+                  }}
+                />
               ))}
             </ul>
           ) : (

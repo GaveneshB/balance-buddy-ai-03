@@ -14,6 +14,7 @@ import { Route as BalancerRouteImport } from './routes/balancer'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SprintRouteImport } from './routes/sprint'
 import { Route as TasksRouteImport } from './routes/tasks'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SprintRoute = SprintRouteImport.update({
+  id: '/sprint',
+  path: '/sprint',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/insights': typeof InsightsRoute
   '/profile': typeof ProfileRoute
+  '/sprint': typeof SprintRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/insights': typeof InsightsRoute
   '/profile': typeof ProfileRoute
+  '/sprint': typeof SprintRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRoutesById {
@@ -70,13 +78,28 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/insights': typeof InsightsRoute
   '/profile': typeof ProfileRoute
+  '/sprint': typeof SprintRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/balancer' | '/chat' | '/insights' | '/profile' | '/tasks'
+  fullPaths:
+    | '/'
+    | '/balancer'
+    | '/chat'
+    | '/insights'
+    | '/profile'
+    | '/sprint'
+    | '/tasks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/balancer' | '/chat' | '/insights' | '/profile' | '/tasks'
+  to:
+    | '/'
+    | '/balancer'
+    | '/chat'
+    | '/insights'
+    | '/profile'
+    | '/sprint'
+    | '/tasks'
   id:
     | '__root__'
     | '/'
@@ -84,6 +107,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/insights'
     | '/profile'
+    | '/sprint'
     | '/tasks'
   fileRoutesById: FileRoutesById
 }
@@ -93,6 +117,7 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   InsightsRoute: typeof InsightsRoute
   ProfileRoute: typeof ProfileRoute
+  SprintRoute: typeof SprintRoute
   TasksRoute: typeof TasksRoute
 }
 
@@ -133,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sprint': {
+      id: '/sprint'
+      path: '/sprint'
+      fullPath: '/sprint'
+      preLoaderRoute: typeof SprintRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tasks': {
       id: '/tasks'
       path: '/tasks'
@@ -149,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   InsightsRoute: InsightsRoute,
   ProfileRoute: ProfileRoute,
+  SprintRoute: SprintRoute,
   TasksRoute: TasksRoute,
 }
 export const routeTree = rootRouteImport

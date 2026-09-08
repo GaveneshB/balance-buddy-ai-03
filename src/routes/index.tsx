@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles, ArrowRight, ShieldAlert, SlidersHorizontal, Play, Pause, RotateCcw, Check } from "lucide-react";
+import { Sparkles, ArrowRight, ShieldAlert, SlidersHorizontal, Play, Pause, RotateCcw, Check, Radio, Headphones } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell, ThemeToggle } from "@/components/AppShell";
 import { CheckInModal } from "@/components/CheckInModal";
@@ -112,18 +112,18 @@ function Dashboard() {
           <p className="text-sm leading-relaxed">
             {getMascotMood(overallCapacity).quote}
           </p>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <Link
-              to="/chat"
-              className="glow-accent inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[image:var(--gradient-accent)] px-4 text-sm font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+              to="/sprint"
+              className="glow-warm inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-2xl bg-[image:var(--gradient-warm)] px-3 text-xs font-bold text-primary-foreground transition-transform active:scale-[0.98] shadow-sm"
             >
-              <Sparkles className="h-4 w-4" /> Open AI Chat
+              <Radio className="h-4 w-4 animate-pulse" /> Focus Sprint Pod
             </Link>
             <Link
-              to="/balancer"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-border px-4 text-sm font-medium text-foreground"
+              to="/chat"
+              className="glow-accent inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-2xl bg-[image:var(--gradient-accent)] px-3 text-xs font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
             >
-              Rebalance
+              <Sparkles className="h-4 w-4" /> AI Chat
             </Link>
           </div>
         </div>
@@ -208,13 +208,21 @@ function Dashboard() {
           </div>
           <p className="text-base font-semibold">Open your notes and write 2 lines.</p>
           <p className="mt-1 text-xs text-muted-foreground">That’s it. 3 minutes only.</p>
-          <button
-            type="button"
-            onClick={() => earnFocusPoints(10)}
-            className="mt-4 min-h-[44px] w-full rounded-2xl bg-[image:var(--gradient-warm)] text-sm font-bold text-primary-foreground active:scale-95 transition-transform"
-          >
-            Start micro-step · Earn +10 focus points 🎉
-          </button>
+          <div className="mt-4 flex gap-2">
+            <Link
+              to="/sprint"
+              className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-2xl bg-[image:var(--gradient-warm)] text-xs font-bold text-primary-foreground active:scale-95 transition-transform shadow-sm"
+            >
+              <Headphones className="h-4 w-4" /> Sprint Room (+15 pts) 🚀
+            </Link>
+            <button
+              type="button"
+              onClick={() => earnFocusPoints(10)}
+              className="px-3 min-h-[44px] rounded-2xl border border-border text-xs font-semibold text-foreground active:scale-95"
+            >
+              +10 FP
+            </button>
+          </div>
         </GlassCard>
       )}
 

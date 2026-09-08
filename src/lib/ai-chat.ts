@@ -8,7 +8,7 @@ export type ChatMessage = {
 
 export type AiChatResponse = {
   text: string;
-  action?: AiAction;
+  action?: AiAction | undefined;
 };
 
 function parseFallbackCommand(message: string): AiChatResponse {
@@ -49,9 +49,9 @@ function parseFallbackCommand(message: string): AiChatResponse {
     lower.includes("exam") ||
     lower.includes("project")
   ) {
-    const course = courseMatch ? courseMatch[1].toUpperCase() : "ACADEMIC";
-    const hours = hoursMatch ? parseFloat(hoursMatch[1]) : 4;
-    const due = dueMatch ? dueMatch[1].trim() : "Thursday";
+    const course = courseMatch?.[1] ? courseMatch[1].toUpperCase() : "ACADEMIC";
+    const hours = hoursMatch?.[1] ? parseFloat(hoursMatch[1]) : 4;
+    const due = dueMatch?.[1] ? dueMatch[1].trim() : "Thursday";
     const title = message.length < 50 ? message : `${course} Assignment`;
 
     let cat: TaskCategory = "mental";
@@ -90,10 +90,10 @@ export const askBalanceAI = createServerFn({ method: "POST" })
       throw new Error("Please type or speak a message before sending it to BalanceAI.");
     }
 
-    const apiKey = process.env.GROQ_API_KEY ?? process.env.OPENAI_API_KEY;
-    const model = process.env.GROQ_MODEL ?? process.env.OPENAI_MODEL ?? "llama-3.3-70b-versatile";
+    const apiKey = process.env["GROQ_API_KEY"] ?? process.env["OPENAI_API_KEY"];
+    const model = process.env["GROQ_MODEL"] ?? process.env["OPENAI_MODEL"] ?? "openai/gpt-oss-120b";
     const baseUrl = (
-      process.env.GROQ_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "https://api.groq.com/openai/v1"
+      process.env["GROQ_BASE_URL"] ?? process.env["OPENAI_BASE_URL"] ?? "https://api.groq.com/openai/v1"
     ).replace(/\/$/, "");
 
     if (!apiKey) {
@@ -164,7 +164,7 @@ export const askBalanceAI = createServerFn({ method: "POST" })
       const jsonBlockMatch = rawContent.match(/```json\s*([\s\S]*?)\s*```/);
       let cleanText = rawContent;
 
-      if (jsonBlockMatch) {
+      if (jsonBlockMatch?.[1]) {
         cleanText = rawContent.replace(jsonBlockMatch[0], "").trim();
         try {
           const parsed = JSON.parse(jsonBlockMatch[1]);
@@ -204,6 +204,204 @@ export const askBalanceAI = createServerFn({ method: "POST" })
       return { text: cleanText || "I've processed your update.", action };
     } catch {
       return parseFallbackCommand(message);
+    }
+  });
+
+export type MicroStep = {
+  id: string;
+  title: string;
+  minutes: number;
+  completed?: boolean | undefined;
+};
+
+export type DeconstructTaskResponse = {
+  taskTitle: string;
+  steps: MicroStep[];
+};
+
+function generateFallbackSteps(taskTitle: string): MicroStep[] {
+  const clean = taskTitle.replace(/assignment|project|exam|study/gi, "").trim() || "Assignment";
+  return [
+    {
+      id: "step-1",
+      title: `Open workspace & inspect required specs for ${clean}`,
+      minutes: 10,
+    },
+    {
+      id: "step-2",
+      title: `Set up boilerplate, starter notes, and initial outline`,
+      minutes: 15,
+    },
+    {
+      id: "step-3",
+      title: `Complete primary core problem or central section`,
+      minutes: 20,
+    },
+    {
+      id: "step-4",
+      title: `Run test checks, verify criteria, and package work`,
+      minutes: 15,
+    },
+  ];
+}
+
+export const deconstructTaskAI = createServerFn({ method: "POST" })
+  .validator(
+    (input: {
+      taskTitle: string;
+      course?: string | undefined;
+      hours?: number | undefined;
+    }) => input,
+  )
+  .handler(async ({ data }): Promise<DeconstructTaskResponse> => {
+    const { config } = await import("dotenv");
+    config();
+
+    const title = (data?.taskTitle ?? "").trim();
+    if (!title) {
+      return { taskTitle: "Task", steps: generateFallbackSteps("Task") };
+    }
+
+    const apiKey = process.env["GROQ_API_KEY"] ?? process.env["OPENAI_API_KEY"];
+    const model = process.env["GROQ_MODEL"] ?? process.env["OPENAI_MODEL"] ?? "openai/gpt-oss-120b";
+    const baseUrl = (
+      process.env["GROQ_BASE_URL"] ?? process.env["OPENAI_BASE_URL"] ?? "https://api.groq.com/openai/v1"
+    ).replace(/\/$/, "");
+
+    if (!apiKey) {
+      return { taskTitle: title, steps: generateFallbackSteps(title) };
+    }
+
+    try {
+      const prompt = `Deconstruct this student task into 3-4 gentle, non-intimidating 10-to-20 minute micro-steps: "${title}" (Course: ${data.course ?? "Academic"}, Est. hours: ${data.hours ?? 3}h).
+Return ONLY a valid JSON array of objects with keys "title" (actionable plain text string, max 10 words) and "minutes" (number 10-20). Do not include any explanations.`;
+
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an expert ADHD executive-dysfunction coach. Deconstruct intimidating tasks into tiny, bite-sized 10-20 minute micro-steps. Return ONLY a valid JSON array.",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        return { taskTitle: title, steps: generateFallbackSteps(title) };
+      }
+
+      const json = (await response.json()) as {
+        choices?: Array<{
+          message?: {
+            content?: string;
+          };
+        }>;
+      };
+
+      const raw = json.choices?.[0]?.message?.content ?? "";
+      const jsonMatch = raw.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (jsonMatch?.[0]) {
+        const parsed = JSON.parse(jsonMatch[0]) as Array<{ title?: string; minutes?: number }>;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const steps: MicroStep[] = parsed.slice(0, 5).map((item, idx) => ({
+            id: `ms-${idx + 1}-${Date.now()}`,
+            title: item.title || `Micro-step ${idx + 1}`,
+            minutes: Number(item.minutes) || 15,
+          }));
+          return { taskTitle: title, steps };
+        }
+      }
+
+      return { taskTitle: title, steps: generateFallbackSteps(title) };
+    } catch {
+      return { taskTitle: title, steps: generateFallbackSteps(title) };
+    }
+  });
+
+export const downsizeStepAI = createServerFn({ method: "POST" })
+  .validator((input: { stepTitle: string }) => input)
+  .handler(async ({ data }): Promise<{ downsizedTitle: string; minutes: number }> => {
+    const original = (data?.stepTitle ?? "").trim();
+    if (!original) {
+      return {
+        downsizedTitle: "Just open your file and write 1 line or comment (2 min)",
+        minutes: 2,
+      };
+    }
+
+    const { config } = await import("dotenv");
+    config();
+
+    const apiKey = process.env["GROQ_API_KEY"] ?? process.env["OPENAI_API_KEY"];
+    const model = process.env["GROQ_MODEL"] ?? process.env["OPENAI_MODEL"] ?? "openai/gpt-oss-120b";
+    const baseUrl = (
+      process.env["GROQ_BASE_URL"] ?? process.env["OPENAI_BASE_URL"] ?? "https://api.groq.com/openai/v1"
+    ).replace(/\/$/, "");
+
+    if (!apiKey) {
+      return {
+        downsizedTitle: `Just open your workspace and read the first sentence of: "${original}"`,
+        minutes: 2,
+      };
+    }
+
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.3,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an ADHD executive coach helping a student unfreeze from task paralysis. Downsize the given step into an effortless, single 2-minute starter action. Respond with just 1 sentence.",
+            },
+            {
+              role: "user",
+              content: `The student is paralyzed trying to do: "${original}". Give them a frictionless 2-minute starter step.`,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        return {
+          downsizedTitle: `Just open your workspace and type 1 comment for: ${original}`,
+          minutes: 2,
+        };
+      }
+
+      const json = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const text = json.choices?.[0]?.message?.content?.trim() || "";
+      return {
+        downsizedTitle: text || `Just open your file and read 1 sentence of: ${original}`,
+        minutes: 2,
+      };
+    } catch {
+      return {
+        downsizedTitle: `Just open your workspace and type 1 comment for: ${original}`,
+        minutes: 2,
+      };
     }
   });
 

@@ -47,7 +47,7 @@ type MessageItem = ChatMessage & {
   actionExecuted?: {
     summary: string;
     actionType: string;
-  };
+  } | undefined;
 };
 
 const quickChips = [
