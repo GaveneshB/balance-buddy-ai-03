@@ -22,16 +22,28 @@ function parseFallbackCommand(message: string): AiChatResponse {
     lower.includes("offload") ||
     lower.includes("overwhelmed")
   ) {
+    const variants = [
+      "Dude, I can totally see you're drowning right now. I pushed all the small stuff to later and drafted a quick text so you can bail on tonight guilt-free. Breathe — we got this 💪",
+      "Okay okay, I hear you. I cleared out all your non-urgent stuff, handled the social side too. You don't have to think about any of that right now. Just focus on you.",
+      "Oof, that's a lot on your plate. I've offloaded the low-priority stuff and bought you some breathing room. One thing at a time from here, yeah? 😊",
+      "Say no more — I've tidied your queue, pushed the fluff tasks out, and drafted your excuse text. You're free. Now actually rest for a sec!",
+    ];
     return {
-      text: "I’ve analyzed your current load. The Autonomous Workload Balancer is deferring your non-urgent errands, drafting your social decline text, and setting your capacity back to a safe 61%.",
+      text: variants[Math.floor(Math.random() * variants.length)]!,
       action: { type: "REBALANCE" },
     };
   }
 
   // 2. Recovery trigger
   if (lower.includes("recovery") || lower.includes("break") || lower.includes("exhausted")) {
+    const variants = [
+      "Whoa okay, you're running on fumes. I'm literally locking your task list for 15 mins — go outside, touch some grass, just breathe. Tasks will be here when you're back 🌿",
+      "Hey, stop. You need a break and I'm making it happen — 15 min pause, no tasks, no decisions. Just walk around, drink some water, okay?",
+      "You're burning out and I'm not gonna let that happen. Task list is locked for 15 mins. Please just step away from the screen for a bit 🙏",
+      "Nope, we're taking a break right now. I locked everything for 15 minutes. Go for a short walk, get some air — the work isn't going anywhere!",
+    ];
     return {
-      text: "Your load is critically high. I’m locking task creation for 15 minutes to reduce decision fatigue. Please step outside for your single-action directive.",
+      text: variants[Math.floor(Math.random() * variants.length)]!,
       action: { type: "TRIGGER_RECOVERY" },
     };
   }
@@ -63,8 +75,14 @@ function parseFallbackCommand(message: string): AiChatResponse {
       cat = "social";
     }
 
+    const variants = [
+      `Alright, locked in "${title}" (${course}, ${hours}h) for ${due}. Put it right at the top of your focus list and shuffled everything else. You're gonna smash it! 🔥`,
+      `Got it! "${title}" is in your queue, set as your main focus for ${due}. Everything else has moved out of the way. Just one step at a time, you're good!`,
+      `Done! "${title}" (${hours}h, ${course}) is logged and set as priority for ${due}. Your queue is sorted — no need to stress about where to start 💪`,
+      `On it! I've added "${title}" for ${due} and bumped it to the front. ${course} assignment sorted. Go you! 🎯`,
+    ];
     return {
-      text: `Got it! I’ve logged "${title}" (${course}, ${hours}h due ${due}). I’ve clocked it in as your focus, updated your 5-vector capacity gauge, and re-prioritized your matrix in real-time.`,
+      text: variants[Math.floor(Math.random() * variants.length)]!,
       action: {
         type: "ADD_TASK",
         payload: { title, course, due, hours, cat },
@@ -72,9 +90,36 @@ function parseFallbackCommand(message: string): AiChatResponse {
     };
   }
 
+  // 4. Update gauge (e.g. "I am feeling mentally exhausted", "my physical gauge should be 80")
+  const gaugeMatch = message.match(/(mental|time|physical|social|errands)/i);
+  const valMatch = message.match(/(\d+)/);
+  if (gaugeMatch && (message.includes("feeling") || message.includes("gauge") || valMatch)) {
+     const vector = gaugeMatch[1].toLowerCase() as any;
+     const val = valMatch ? parseInt(valMatch[1], 10) : 85;
+     const variants = [
+       `Heard! Updated your ${vector} gauge to ${val}%. Take it easy today, seriously. Your body and mind need the break more than the to-do list does 🫶`,
+       `Got it, ${vector} gauge is now at ${val}%. Make sure you're not pushing through it — take proper breaks, not just 2-min scrolling breaks 😅`,
+       `Noted! ${vector} at ${val}% now. Hey, don't forget to actually rest today — not just sit there and think about resting 😂`,
+       `Done! ${vector} gauge → ${val}%. Listen to your body on this one. If you need to slow down, slow down. It's okay!`,
+     ];
+     return {
+       text: variants[Math.floor(Math.random() * variants.length)]!,
+       action: {
+         type: "UPDATE_GAUGE",
+         payload: { vector, val }
+       }
+     };
+  }
+
   // Default natural coaching response
+  const defaultVariants = [
+    "I totally get it. Honestly? Just pick ONE thing from your list today, the most important academic one, and let everything else chill. And please, 10 mins tonight just for yourself — no screens 🙏",
+    "You're doing a lot, and that's real. Let's simplify — one key academic task today, that's it. The errands will survive without you for now 😄",
+    "tbh looking at your load, the best thing you can do right now is just start one thing. Not five things, not a plan — just one thing. You've got this.",
+    "Hey, don't overthink it. Pick the most urgent uni thing, do just that, and ignore the rest. Small wins add up, I promise 💙",
+  ];
   return {
-    text: "I’ve checked your capacity gauge. Focus on one urgent academic milestone today, let low-priority errands wait, and protect your evening for a 10-minute recovery reset.",
+    text: defaultVariants[Math.floor(Math.random() * defaultVariants.length)]!,
   };
 }
 
@@ -117,14 +162,16 @@ export const askBalanceAI = createServerFn({ method: "POST" })
             {
               role: "system",
               content:
-                "You are BalanceAI, a calm student-performance coach and autonomous workload manager.\n" +
-                "Help students stay productive without burning out.\n" +
+                "You are BalanceAI, but drop all robotic AI personas. You are the user's best friend. You text like a supportive, chill college friend (e.g. use words like 'dude', 'man', 'tbh', 'definitely', 'gotcha').\n" +
                 "Style rules:\n" +
+                "- Act extremely human. Use casual slang, emojis occasionally, and conversational fillers naturally.\n" +
+                "- Never say 'I am an AI' or 'As an AI'.\n" +
                 "- Write in clear, supportive plain text (no markdown bold/asterisks).\n" +
-                "- Keep advice short, practical, and grounded (3-5 sentences).\n" +
+                "- Keep advice super short, like a text message (1-3 sentences).\n" +
                 "- If the user specifies an assignment or task (e.g. 'I just got a CS301 Machine Learning assignment due Thursday, high priority, takes 6 hours'), parse it and append a single line JSON at the end: ```json {\"action\": \"ADD_TASK\", \"title\": \"...\", \"course\": \"...\", \"due\": \"...\", \"hours\": 6, \"cat\": \"mental\"} ```\n" +
                 "- If the user asks to balance, rebalance, or offload: append ```json {\"action\": \"REBALANCE\"} ``` at the end.\n" +
-                "- If the user is burning out or requests recovery: append ```json {\"action\": \"TRIGGER_RECOVERY\"} ``` at the end.",
+                "- If the user is burning out or requests recovery: append ```json {\"action\": \"TRIGGER_RECOVERY\"} ``` at the end.\n" +
+                "- If the user expresses how they are feeling regarding their mental, physical, social, time, or errands capacity: append ```json {\"action\": \"UPDATE_GAUGE\", \"vector\": \"mental\", \"val\": 80} ``` at the end (guess a suitable value 0-100 based on their sentiment if they don't specify).",
             },
             ...history.map((item) => ({
               role: item.role,
@@ -183,6 +230,14 @@ export const askBalanceAI = createServerFn({ method: "POST" })
             action = { type: "REBALANCE" };
           } else if (parsed.action === "TRIGGER_RECOVERY") {
             action = { type: "TRIGGER_RECOVERY" };
+          } else if (parsed.action === "UPDATE_GAUGE") {
+            action = {
+              type: "UPDATE_GAUGE",
+              payload: {
+                vector: parsed.vector || "mental",
+                val: typeof parsed.val === "number" ? parsed.val : 85,
+              },
+            };
           }
         } catch {}
       }

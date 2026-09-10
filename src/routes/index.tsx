@@ -169,61 +169,7 @@ function Dashboard() {
         </GlassCard>
       )}
 
-      {/* 4. 5-Vector Capacity Gauge (1-5 Scale) */}
-      <GlassCard>
-        <div className="flex items-center justify-between">
-          <SectionTitle>5-Vector Capacity Gauge</SectionTitle>
-          <button
-            type="button"
-            onClick={() => setCheckInOpen(true)}
-            className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:border-accent"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" /> 5s Check-In
-          </button>
-        </div>
 
-        <ul className="mt-4 space-y-4">
-          {vectorDetails.map(({ key, label }) => {
-            const rawVal = vectors[key];
-            const level = rawVal <= 5 ? rawVal : Math.min(5, Math.max(1, Math.ceil(rawVal / 20)));
-            const tone = toneForLevel(level);
-            const percentage = (level / 5) * 100;
-
-            return (
-              <li key={key}>
-                <div className="mb-1.5 flex items-baseline justify-between text-sm">
-                  <span className="font-medium">{label}</span>
-                  <span className="tabular-nums text-muted-foreground text-xs">
-                    <strong className="text-foreground">{level}/5</strong> ·{" "}
-                    <span style={{ color: tone.color }}>{tone.text}</span>
-                  </span>
-                </div>
-                <div
-                  className="h-2.5 w-full overflow-hidden rounded-full"
-                  role="meter"
-                  aria-valuenow={level}
-                  aria-valuemin={1}
-                  aria-valuemax={5}
-                  aria-label={`${label} capacity level ${level} out of 5, ${tone.text}`}
-                  style={{ backgroundColor: "var(--muted)" }}
-                >
-                  <div
-                    className="h-full rounded-full transition-[width] duration-500"
-                    style={{ width: `${percentage}%`, backgroundColor: tone.color }}
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-
-        <Link
-          to="/balancer"
-          className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-accent-foreground"
-        >
-          Open Autonomous Capacity Shield <ArrowRight className="h-4 w-4" />
-        </Link>
-      </GlassCard>
 
       <CheckInModal open={checkInOpen} onClose={() => setCheckInOpen(false)} />
     </AppShell>

@@ -39,7 +39,8 @@ export type AiAction =
       };
     }
   | { type: "REBALANCE"; payload?: { reason?: string | undefined } | undefined }
-  | { type: "TRIGGER_RECOVERY"; payload?: { durationMinutes?: number | undefined } | undefined };
+  | { type: "TRIGGER_RECOVERY"; payload?: { durationMinutes?: number | undefined } | undefined }
+  | { type: "UPDATE_GAUGE"; payload: { vector: VectorKey; val: number } };
 
 export type AppStateContextType = {
   vectors: VectorState;
@@ -206,9 +207,39 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return defaultBaselines;
   });
 
-  const [tasks, setTasks] = useState<TaskItem[]>(initialUrgentTasks);
-  const [offloadedTasks, setOffloadedTasks] = useState<TaskItem[]>(initialOffloadedTasks);
-  const [clockedInTask, setClockedInTask] = useState<TaskItem | null>(initialUrgentTasks[0] ?? null);
+  const [tasks, setTasks] = useState<TaskItem[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("balanceai:tasks");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+    }
+    return initialUrgentTasks;
+  });
+  const [offloadedTasks, setOffloadedTasks] = useState<TaskItem[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("balanceai:offloadedTasks");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+    }
+    return initialOffloadedTasks;
+  });
+  const [clockedInTask, setClockedInTask] = useState<TaskItem | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("balanceai:clockedInTask");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+    }
+    return initialUrgentTasks[0] ?? null;
+  });
   const [rebalanced, setRebalanced] = useState(false);
   const [calendarSynced, setCalendarSynced] = useState(true);
   const [focusPoints, setFocusPoints] = useState(40);
@@ -257,6 +288,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem("balanceai:vectors", JSON.stringify(vectors));
   }, [vectors]);
+
+  useEffect(() => {
+    localStorage.setItem("balanceai:tasks", JSON.stringify(tasks));
+  }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem("balanceai:offloadedTasks", JSON.stringify(offloadedTasks));
+  }, [offloadedTasks]);
+
+  useEffect(() => {
+    localStorage.setItem("balanceai:clockedInTask", JSON.stringify(clockedInTask));
+  }, [clockedInTask]);
 
   // Real-time minute timer for recovery countdown
   useEffect(() => {
@@ -422,9 +465,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setRecoveryLockUntil(Date.now() + (action.payload?.durationMinutes ?? 15) * 60 * 1000);
         return `Recovery Mode activated. Creation locked for 15 minutes to prevent decision fatigue. Follow your single-action directive.`;
       }
+      if (action.type === "UPDATE_GAUGE") {
+        setVector(action.payload.vector, action.payload.val);
+        return `Updated your ${action.payload.vector} capacity gauge to ${action.payload.val}%.`;
+      }
       return "Action executed.";
     },
-    [addTask, rebalanceWeek],
+    [addTask, rebalanceWeek, setVector],
   );
 
   const completeTask = useCallback((taskId: string) => {

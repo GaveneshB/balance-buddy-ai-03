@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BalancerRouteImport } from './routes/balancer'
 import { Route as ChatRouteImport } from './routes/chat'
-import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SprintRouteImport } from './routes/sprint'
 import { Route as TasksRouteImport } from './routes/tasks'
@@ -30,11 +29,6 @@ const BalancerRoute = BalancerRouteImport.update({
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InsightsRoute = InsightsRouteImport.update({
-  id: '/insights',
-  path: '/insights',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -57,7 +51,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/balancer': typeof BalancerRoute
   '/chat': typeof ChatRoute
-  '/insights': typeof InsightsRoute
   '/profile': typeof ProfileRoute
   '/sprint': typeof SprintRoute
   '/tasks': typeof TasksRoute
@@ -66,7 +59,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/balancer': typeof BalancerRoute
   '/chat': typeof ChatRoute
-  '/insights': typeof InsightsRoute
   '/profile': typeof ProfileRoute
   '/sprint': typeof SprintRoute
   '/tasks': typeof TasksRoute
@@ -76,46 +68,23 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/balancer': typeof BalancerRoute
   '/chat': typeof ChatRoute
-  '/insights': typeof InsightsRoute
   '/profile': typeof ProfileRoute
   '/sprint': typeof SprintRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/balancer'
-    | '/chat'
-    | '/insights'
-    | '/profile'
-    | '/sprint'
-    | '/tasks'
+  fullPaths: '/' | '/balancer' | '/chat' | '/profile' | '/sprint' | '/tasks'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/balancer'
-    | '/chat'
-    | '/insights'
-    | '/profile'
-    | '/sprint'
-    | '/tasks'
+  to: '/' | '/balancer' | '/chat' | '/profile' | '/sprint' | '/tasks'
   id:
-    | '__root__'
-    | '/'
-    | '/balancer'
-    | '/chat'
-    | '/insights'
-    | '/profile'
-    | '/sprint'
-    | '/tasks'
+    '__root__' | '/' | '/balancer' | '/chat' | '/profile' | '/sprint' | '/tasks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BalancerRoute: typeof BalancerRoute
   ChatRoute: typeof ChatRoute
-  InsightsRoute: typeof InsightsRoute
   ProfileRoute: typeof ProfileRoute
   SprintRoute: typeof SprintRoute
   TasksRoute: typeof TasksRoute
@@ -142,13 +111,6 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/insights': {
-      id: '/insights'
-      path: '/insights'
-      fullPath: '/insights'
-      preLoaderRoute: typeof InsightsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -179,7 +141,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BalancerRoute: BalancerRoute,
   ChatRoute: ChatRoute,
-  InsightsRoute: InsightsRoute,
   ProfileRoute: ProfileRoute,
   SprintRoute: SprintRoute,
   TasksRoute: TasksRoute,

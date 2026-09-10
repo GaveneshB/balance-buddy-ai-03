@@ -22,14 +22,11 @@ const items = [
   { to: "/", label: "Home", icon: Home },
   { to: "/balancer", label: "Balance", icon: Scale },
   { to: "/chat", label: "Chat", icon: MessageSquareText },
-  { to: "/insights", label: "Insights", icon: BarChart3 },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
 
 function BottomNav() {
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const left = items.slice(0, 2);
-  const right = items.slice(2);
 
   return (
     <nav
@@ -37,21 +34,7 @@ function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md px-4 pb-4"
     >
       <div className="glass-panel relative flex items-end justify-between gap-1 rounded-[24px] px-3 py-2">
-        {left.map((i) => (
-          <NavItem key={i.to} {...i} active={path === i.to} />
-        ))}
-
-        <div className="flex w-16 justify-center">
-          <Link
-            to="/chat"
-            aria-label="Open the BalanceAI chat assistant"
-            className="glow-accent -mt-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-[image:var(--gradient-accent)] text-primary-foreground transition-transform active:scale-95"
-          >
-            <Plus className="h-6 w-6" />
-          </Link>
-        </div>
-
-        {right.map((i) => (
+        {items.map((i) => (
           <NavItem key={i.to} {...i} active={path === i.to} />
         ))}
       </div>

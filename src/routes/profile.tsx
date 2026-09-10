@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Check, Calendar } from "lucide-react";
+import { useState, useEffect } from "react";
 import { AppShell, ThemeToggle } from "@/components/AppShell";
 import { GlassCard, SectionTitle } from "@/components/Glass";
-import { useAppState, type VectorKey } from "@/lib/app-state";
+import { useAppState } from "@/lib/app-state";
 import { usePrefs, type InterfaceMode } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
+import { getChartData, type WeekRecord } from "@/lib/metrics-db";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -46,17 +48,28 @@ const modes: { id: InterfaceMode; label: string; badge: string; copy: string }[]
   },
 ];
 
-const baselineList: { key: VectorKey; label: string }[] = [
-  { key: "mental", label: "Mental" },
-  { key: "time", label: "Time" },
-  { key: "physical", label: "Physical" },
-  { key: "social", label: "Social" },
-  { key: "errands", label: "Errands" },
-];
 
 export function Profile() {
-  const { mode, setMode, theme, toggleTheme } = usePrefs();
-  const { userProfile, calendarSynced, toggleCalendarSync, baselines, setBaseline, focusPoints } = useAppState();
+  const { mode, setMode } = usePrefs();
+  const { userProfile, calendarSynced, toggleCalendarSync, focusPoints } = useAppState();
+
+  const [chartData, setChartData] = useState<WeekRecord[]>([]);
+
+  useEffect(() => {
+    // Initial fetch from our DB
+    setChartData([...getChartData()]);
+
+    // Live update when score changes on the dashboard
+    const handleUpdate = () => {
+      setChartData([...getChartData()]);
+    };
+
+    window.addEventListener("balance_ai_db_updated", handleUpdate);
+
+    return () => {
+      window.removeEventListener("balance_ai_db_updated", handleUpdate);
+    };
+  }, []);
 
   return (
     <AppShell
@@ -150,72 +163,52 @@ export function Profile() {
         </div>
       </GlassCard>
 
-      {/* Capacity Baselines */}
+
+
+      {/* Insights */}
       <GlassCard>
-        <SectionTitle>Personal Capacity Baselines</SectionTitle>
-        <p className="text-xs text-muted-foreground mb-4">
-          Adjust your personal tolerance threshold for each energy vector.
-        </p>
-        <div className="space-y-4">
-          {baselineList.map(({ key, label }) => {
-            const val = baselines[key];
+        <SectionTitle>Load this week</SectionTitle>
+        <div className="flex h-40 items-end justify-between gap-2 pt-4">
+          {chartData.map((w) => {
+            const val = w.v ?? 0;
             return (
-              <div key={key}>
-                <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-                  <span>{label} Tolerance</span>
-                  <span className="tabular-nums text-muted-foreground">{val}%</span>
+              <div
+                key={w.d}
+                className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+              >
+                <div className="flex h-full w-full items-end justify-center">
+                  <div
+                    className="w-full rounded-t-xl transition-all duration-500"
+                    style={{
+                      height: val > 0 ? `${Math.min(100, Math.max(6, val))}%` : "4px",
+                      background:
+                        val === 0
+                          ? "var(--muted)"
+                          : val >= 85
+                            ? "var(--danger)"
+                            : val >= 65
+                              ? "var(--warn)"
+                              : "var(--safe)",
+                    }}
+                    aria-hidden
+                  />
                 </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={val}
-                  onChange={(e) => setBaseline(key, Number(e.target.value))}
-                  aria-label={`${label} baseline slider`}
-                  className="h-2 w-full cursor-pointer appearance-none rounded-full accent-[var(--violet)]"
-                  style={{ backgroundColor: "var(--muted)" }}
-                />
+                <span className="text-[11px] text-muted-foreground">{w.d}</span>
+                <span className="sr-only">
+                  {w.d}: {val}% load
+                </span>
               </div>
             );
           })}
         </div>
       </GlassCard>
 
-      {/* App Preferences */}
       <GlassCard>
-        <SectionTitle>App Preferences</SectionTitle>
-        <div className="flex items-center justify-between border-b border-border py-3.5">
-          <div>
-            <p className="text-sm font-medium">Dark Mode</p>
-            <p className="text-xs text-muted-foreground">Deep slate glassmorphism palette.</p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={theme === "dark"}
-            aria-label="Dark mode toggle"
-            onClick={toggleTheme}
-            className={cn(
-              "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-              theme === "dark" ? "bg-[image:var(--gradient-accent)]" : "bg-muted",
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-1 h-5 w-5 rounded-full bg-background transition-all",
-                theme === "dark" ? "left-6" : "left-1",
-              )}
-            />
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between py-3.5">
-          <div>
-            <p className="text-sm font-medium">Proactive Recovery Interventions</p>
-            <p className="text-xs text-muted-foreground">Auto-trigger Capacity Shield at 85%+ capacity.</p>
-          </div>
-          <span className="text-xs font-bold text-[var(--safe)]">Enabled</span>
-        </div>
+        <SectionTitle>Recovery</SectionTitle>
+        <p className="text-3xl font-bold">4-day streak</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          You protected an evening recovery window 4 days in a row.
+        </p>
       </GlassCard>
     </AppShell>
   );
