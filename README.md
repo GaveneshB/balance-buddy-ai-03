@@ -8,6 +8,8 @@
 
 [![Presentation deck](https://img.shields.io/badge/Canva-Presentation%20Deck-00c4cc?logo=canva&logoColor=white)](https://www.canva.com/design/DAHUJpuvOmw/81yK8mFGs1uWb3qc5GKXLQ/edit)
 
+[![Deployed app](https://img.shields.io/badge/Vercel-Deployed-000000?logo=vercel&logoColor=white)](https://balance-buddy-ai-03.vercel.app)
+
 ## Table of Contents
 
 1. [Overview](#overview)
