@@ -375,6 +375,7 @@ npm run format       # Format the repository with Prettier
 - **Presentation deck:** [Balance Buddy AI on Canva](https://www.canva.com/design/DAHUJpuvOmw/81yK8mFGs1uWb3qc5GKXLQ/edit)
 - **Product concept:** Symbiotic AI stress-mirror companion for student workload protection
 - **Repository:** This project
+- **Deployed link:** TBD
 
 ## Team
 
