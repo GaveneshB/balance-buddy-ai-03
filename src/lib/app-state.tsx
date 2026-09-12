@@ -14,6 +14,13 @@ export type VectorState = Record<VectorKey, number>;
 
 export type TaskCategory = "mental" | "physical" | "social" | "errands";
 
+export type MicroStep = {
+  id: string;
+  title: string;
+  minutes: number;
+  completed?: boolean | undefined;
+};
+
 export type TaskItem = {
   id: string;
   title: string;
@@ -25,6 +32,7 @@ export type TaskItem = {
   cat: TaskCategory;
   tone: string;
   isOffloaded?: boolean | undefined;
+  microSteps?: MicroStep[] | undefined;
 };
 
 export type AiAction =
@@ -36,6 +44,18 @@ export type AiAction =
         due?: string | undefined;
         hours?: number | undefined;
         cat?: TaskCategory | undefined;
+        microSteps?: MicroStep[] | undefined;
+      };
+    }
+  | {
+      type: "PROPOSE_TASK";
+      payload: {
+        title: string;
+        course?: string | undefined;
+        due?: string | undefined;
+        hours?: number | undefined;
+        cat?: TaskCategory | undefined;
+        microSteps: MicroStep[];
       };
     }
   | { type: "REBALANCE"; payload?: { reason?: string | undefined } | undefined }
@@ -69,6 +89,7 @@ export type AppStateContextType = {
     due?: string | undefined;
     hours?: number | undefined;
     cat?: TaskCategory | undefined;
+    microSteps?: MicroStep[] | undefined;
   }) => TaskItem;
   rebalanceWeek: () => void;
   approveRebalance: () => void;
@@ -334,6 +355,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       due?: string | undefined;
       hours?: number | undefined;
       cat?: TaskCategory | undefined;
+      microSteps?: MicroStep[] | undefined;
     }): TaskItem => {
       const cat = input.cat ?? "mental";
       const hoursNum = input.hours ?? 4;
@@ -350,6 +372,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         weight,
         cat,
         tone,
+        microSteps: input.microSteps,
       };
 
       setTasks((prev) => [newTask, ...prev]);

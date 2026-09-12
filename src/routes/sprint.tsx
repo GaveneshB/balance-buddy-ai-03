@@ -34,9 +34,8 @@ import { ambientAudio, type SoundscapeType } from "@/lib/ambient-audio";
 import {
   deconstructTaskAI,
   downsizeStepAI,
-  type MicroStep,
 } from "@/lib/ai-chat";
-import { useAppState, type TaskItem } from "@/lib/app-state";
+import { useAppState, type MicroStep, type TaskItem } from "@/lib/app-state";
 import { usePrefs } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 
@@ -75,7 +74,7 @@ export function SprintRoomScreen() {
   const downsizeAI = useServerFn(downsizeStepAI);
 
   // Micro-steps state
-  const [steps, setSteps] = useState<MicroStep[]>([
+  const [steps, setSteps] = useState<MicroStep[]>(activeTask?.microSteps ?? [
     {
       id: "step-1",
       title: activeTask

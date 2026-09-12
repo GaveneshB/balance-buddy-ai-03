@@ -14,11 +14,11 @@ import {
   CalendarCheck,
   ShieldCheck,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell, ThemeToggle } from "@/components/AppShell";
 import { GlassCard } from "@/components/Glass";
 import { SymbioticAvatar } from "@/components/SymbioticAvatar";
-import { askBalanceAI, type ChatMessage } from "@/lib/ai-chat";
+import { askMultiAgentAI, type AgentId, type ChatMessage, type ChatMode } from "@/lib/ai-chat";
 import { useAppState, type AiAction } from "@/lib/app-state";
 import { cn } from "@/lib/utils";
 
@@ -44,11 +44,14 @@ export const Route = createFileRoute("/chat")({
 });
 
 type MessageItem = ChatMessage & {
+  agent?: AgentId | undefined;
   actionExecuted?: {
     summary: string;
     actionType: string;
   } | undefined;
 };
+
+type TaskDraft = Extract<AiAction, { type: "PROPOSE_TASK" }>['payload'];
 
 const quickChips = [
   {
@@ -69,24 +72,37 @@ const quickChips = [
 ];
 
 export function ChatScreen() {
-  const { overallCapacity, executeAiAction, clockedInTask } = useAppState();
+  const { overallCapacity, executeAiAction, clockedInTask, isRecoveryLocked, recoveryMinutesLeft } = useAppState();
 
   const [cleared, setCleared] = useState(false);
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [taskDraft, setTaskDraft] = useState<TaskDraft | null>(null);
+  const [chatMode, setChatMode] = useState<ChatMode>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("balanceai:chat-mode");
+      if (saved === "both" || saved === "task" || saved === "wellbeing") return saved;
+    }
+    return "both";
+  });
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const [messages, setMessages] = useState<MessageItem[]>([
     {
       role: "assistant",
+      agent: "wellbeing",
       content:
         "Hey Dhanesh! I’m connected to your 5-vector capacity engine. You can type or speak tasks naturally like 'I just got a CS301 ML assignment due Thursday, 6h' or tell me 'balance my day'. What’s on your mind?",
     },
   ]);
 
-  const askAI = useServerFn(askBalanceAI);
+  const askAI = useServerFn(askMultiAgentAI);
+
+  useEffect(() => {
+    localStorage.setItem("balanceai:chat-mode", chatMode);
+  }, [chatMode]);
 
   // Web Speech API Integration
   function toggleVoiceInput() {
@@ -161,30 +177,56 @@ export function ChatScreen() {
     setIsSending(true);
 
     try {
+      if (taskDraft && /^(yes|yep|yeah|looks good|perfect|approve|create it|add it|go ahead)/i.test(typedValue)) {
+        if (isRecoveryLocked) {
+          setError(`I can keep refining this draft, but task creation is locked for ${recoveryMinutesLeft} more minute(s).`);
+        } else {
+          const summary = executeAiAction({ type: "ADD_TASK", payload: taskDraft });
+          setTaskDraft(null);
+          setMessages([
+            ...nextMessages,
+            { role: "assistant", content: "Done — I used the breakdown you approved and added the task to your focus queue.", actionExecuted: { summary, actionType: "ADD_TASK" } },
+          ]);
+        }
+        return;
+      }
+
       const response = await askAI({
         data: {
           message: typedValue,
           history: nextMessages.map(({ role, content }) => ({ role, content })),
+          mode: chatMode,
+          taskDraft: taskDraft ?? undefined,
         },
       });
 
-      let actionExecutedSummary: string | undefined;
-      let actionType: string | undefined;
+      const assistantMessages: MessageItem[] = response.responses.map((agentResponse) => {
+        let actionExecutedSummary: string | undefined;
+        let actionType: string | undefined;
 
-      if (response.action) {
-        actionExecutedSummary = executeAiAction(response.action);
-        actionType = response.action.type;
-      }
+        if (agentResponse.agent === "task" && agentResponse.action?.type === "PROPOSE_TASK") {
+          setTaskDraft(agentResponse.action.payload);
+        } else if (
+          agentResponse.agent === "wellbeing" &&
+          (agentResponse.action?.type === "UPDATE_GAUGE" || agentResponse.action?.type === "TRIGGER_RECOVERY")
+        ) {
+          actionExecutedSummary = executeAiAction(agentResponse.action);
+          actionType = agentResponse.action.type;
+        }
 
-      setMessages([
-        ...nextMessages,
-        {
+        return {
           role: "assistant",
-          content: response.text,
+          agent: agentResponse.agent,
+          content: agentResponse.text,
           actionExecuted: actionExecutedSummary
             ? { summary: actionExecutedSummary, actionType: actionType || "ACTION" }
             : undefined,
-        },
+        };
+      });
+
+      setMessages([
+        ...nextMessages,
+        ...assistantMessages,
       ]);
     } catch (caughtError) {
       const msg = caughtError instanceof Error ? caughtError.message : "The AI request failed.";
@@ -192,6 +234,20 @@ export function ChatScreen() {
     } finally {
       setIsSending(false);
     }
+  }
+
+  function approveTaskDraft() {
+    if (!taskDraft) return;
+    if (isRecoveryLocked) {
+      setError(`I can keep refining this draft, but task creation is locked for ${recoveryMinutesLeft} more minute(s).`);
+      return;
+    }
+    const summary = executeAiAction({ type: "ADD_TASK", payload: taskDraft });
+    setTaskDraft(null);
+    setMessages((current) => [
+      ...current,
+      { role: "assistant", content: "Done — your approved task breakdown is now saved with the task.", actionExecuted: { summary, actionType: "ADD_TASK" } },
+    ]);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -203,7 +259,7 @@ export function ChatScreen() {
   return (
     <AppShell
       header={
-        <header className="sticky top-0 z-30 px-4 pt-5 pb-3">
+      <header className="sticky top-0 z-30 px-4 pt-5 pb-3">
           <div className="glass-panel flex items-center gap-3 px-3 py-2.5">
             <SymbioticAvatar capacity={overallCapacity} size="sm" />
             <div className="min-w-0 flex-1">
@@ -232,6 +288,23 @@ export function ChatScreen() {
               <Eraser className="h-4.5 w-4.5" />
             </button>
             <ThemeToggle />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-1 rounded-2xl border border-border/70 bg-[color:var(--glass-bg)]/70 p-1">
+            {(["both", "task", "wellbeing"] as ChatMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setChatMode(mode)}
+                className={cn(
+                  "min-h-[38px] rounded-xl px-2 text-[11px] font-bold transition-colors",
+                  chatMode === mode
+                    ? "bg-[image:var(--gradient-accent)] text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {mode === "both" ? "Both Agents" : mode === "task" ? "Task Agent" : "Wellbeing Agent"}
+              </button>
+            ))}
           </div>
         </header>
       }
@@ -278,6 +351,15 @@ export function ChatScreen() {
                       : "rounded-bl-md border border-border/70 bg-[color:var(--glass-bg)]/80 text-foreground",
                   )}
                 >
+                  {message.agent && (
+                    <p className={cn(
+                      "mb-1 text-[10px] font-bold uppercase tracking-wider",
+                      message.agent === "task" ? "text-[var(--violet)]" : "text-[var(--teal)]",
+                    )}
+                    >
+                      {message.agent === "task" ? "Task Agent" : "Wellbeing Agent"}
+                    </p>
+                  )}
                   {message.content}
                 </div>
 
@@ -295,6 +377,52 @@ export function ChatScreen() {
               </div>
             ))}
           </div>
+
+          {taskDraft && (
+            <GlassCard className="border-[var(--violet)]/40 bg-[color:var(--violet)]/5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--violet)]">Task draft</p>
+                  <h2 className="mt-1 text-base font-bold">{taskDraft.title}</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {taskDraft.course} · Due {taskDraft.due} · {taskDraft.hours}h
+                  </p>
+                </div>
+                <span className="rounded-full bg-[var(--violet)]/15 px-2 py-1 text-[10px] font-bold text-[var(--violet)]">
+                  {taskDraft.microSteps.length} steps
+                </span>
+              </div>
+              <ol className="mt-4 space-y-2">
+                {taskDraft.microSteps.map((step, index) => (
+                  <li key={step.id} className="flex gap-2 rounded-xl border border-border/60 px-3 py-2 text-xs">
+                    <span className="font-bold text-[var(--violet)]">{index + 1}.</span>
+                    <span className="flex-1">{step.title}</span>
+                    <span className="shrink-0 text-muted-foreground">{step.minutes}m</span>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Tell me how you want to shape the breakdown—more or fewer steps, simpler actions, different time limits, or changes to any specific step. When it feels right, say “approve” or use the button.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={approveTaskDraft}
+                  disabled={isRecoveryLocked}
+                  className="flex-1 rounded-xl bg-[image:var(--gradient-accent)] px-3 py-2 text-xs font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isRecoveryLocked ? `Locked · ${recoveryMinutesLeft}m` : "Approve & Add Task"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTaskDraft(null)}
+                  className="rounded-xl border border-border px-3 py-2 text-xs font-semibold text-muted-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            </GlassCard>
+          )}
 
           {error && (
             <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-3.5 py-2.5 text-xs text-red-200">

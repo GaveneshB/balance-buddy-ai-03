@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { AiAction, TaskCategory } from "./app-state";
+import type { AiAction, MicroStep, TaskCategory, VectorKey } from "./app-state";
 
 export type ChatMessage = {
   role: "user" | "assistant";
@@ -9,6 +9,19 @@ export type ChatMessage = {
 export type AiChatResponse = {
   text: string;
   action?: AiAction | undefined;
+};
+
+export type AgentId = "task" | "wellbeing";
+export type ChatMode = "both" | AgentId;
+
+export type AgentChatResponse = {
+  agent: AgentId;
+  text: string;
+  action?: AiAction | undefined;
+};
+
+export type MultiAgentChatResponse = {
+  responses: AgentChatResponse[];
 };
 
 function parseFallbackCommand(message: string): AiChatResponse {
@@ -64,7 +77,16 @@ function parseFallbackCommand(message: string): AiChatResponse {
     const course = courseMatch?.[1] ? courseMatch[1].toUpperCase() : "ACADEMIC";
     const hours = hoursMatch?.[1] ? parseFloat(hoursMatch[1]) : 4;
     const due = dueMatch?.[1] ? dueMatch[1].trim() : "Thursday";
-    const title = message.length < 50 ? message : `${course} Assignment`;
+    const titleMatch = message.match(/(?:create|add|got|received|have|need)\s+(?:a|an|the)?\s*(.*?)(?=\s+due\b|\s+takes?\b|,|$)/i);
+    const title = titleMatch?.[1]?.trim() || (message.length < 70 ? message : `${course} Assignment`);
+    const requestedStepsMatch = lower.match(/\b(\d{1,2})\s*(?:steps?|parts?)\b/) ?? lower.match(/(?:maybe|around|like)\s+(\d{1,2})\b/);
+    const requestedSteps = requestedStepsMatch ? Number(requestedStepsMatch[1]) : 4;
+
+    if (requestedSteps > 10) {
+      return {
+        text: `I can make up to 10 steps. For more than that, tell me which parts of “${title}” need their own detailed breakdown, and I’ll tailor the plan around those sections.`,
+      };
+    }
 
     let cat: TaskCategory = "mental";
     if (lower.includes("grocery") || lower.includes("clean") || lower.includes("pass") || lower.includes("errand")) {
@@ -84,8 +106,8 @@ function parseFallbackCommand(message: string): AiChatResponse {
     return {
       text: variants[Math.floor(Math.random() * variants.length)]!,
       action: {
-        type: "ADD_TASK",
-        payload: { title, course, due, hours, cat },
+        type: "PROPOSE_TASK",
+        payload: { title, course, due, hours, cat, microSteps: fallbackSteps(title, Math.max(2, requestedSteps)) },
       },
     };
   }
@@ -94,8 +116,8 @@ function parseFallbackCommand(message: string): AiChatResponse {
   const gaugeMatch = message.match(/(mental|time|physical|social|errands)/i);
   const valMatch = message.match(/(\d+)/);
   if (gaugeMatch && (message.includes("feeling") || message.includes("gauge") || valMatch)) {
-     const vector = gaugeMatch[1].toLowerCase() as any;
-     const val = valMatch ? parseInt(valMatch[1], 10) : 85;
+     const vector = (gaugeMatch[1] ?? "mental").toLowerCase() as VectorKey;
+     const val = valMatch?.[1] ? parseInt(valMatch[1], 10) : 85;
      const variants = [
        `Heard! Updated your ${vector} gauge to ${val}%. Take it easy today, seriously. Your body and mind need the break more than the to-do list does 🫶`,
        `Got it, ${vector} gauge is now at ${val}%. Make sure you're not pushing through it — take proper breaks, not just 2-min scrolling breaks 😅`,
@@ -123,8 +145,53 @@ function parseFallbackCommand(message: string): AiChatResponse {
   };
 }
 
+function fallbackSteps(title: string, count = 4, minutes = 15): MicroStep[] {
+  const templates = [
+    `Open the brief and identify what ${title} requires`,
+    "Gather the materials, references, and examples you need",
+    "Complete the smallest meaningful part of the work",
+    "Review the result and prepare the final submission",
+    "Polish one section and check it against the requirements",
+    "Do a final quality check and note anything still missing",
+    "Submit or share the finished work",
+    "Take a moment to record what you completed",
+    "Double-check the final details against the rubric",
+    "Write a short reflection on the work you finished",
+  ];
+  return templates.slice(0, Math.max(2, Math.min(10, count))).map((step, index) => ({
+    id: `draft-step-${index + 1}`,
+    title: step,
+    minutes: Math.max(5, Math.min(30, minutes)),
+  }));
+}
+
+function reviseFallbackCommand(message: string, draft: Extract<AiAction, { type: "PROPOSE_TASK" }>['payload']): AiChatResponse {
+  const lower = message.toLowerCase();
+  const countMatch = lower.match(/\b(\d{1,2})\s*(?:steps?|parts?)\b/) ?? lower.match(/(?:maybe|around|like)\s+(\d{1,2})\b/);
+  const minutesMatch = lower.match(/\b(5|10|15|20|25|30)\s*(?:minutes?|mins?)\b/);
+  const requestedCount = countMatch ? Number(countMatch[1]) : draft.microSteps.length;
+  if (requestedCount > 10) {
+    return {
+      text: `I can make up to 10 steps. For more than that, tell me which parts of the assignment need their own detailed breakdown, and I’ll tailor the plan around those sections.`,
+    };
+  }
+  const count = Math.max(2, requestedCount);
+  const minutes = minutesMatch ? Number(minutesMatch[1]) : lower.includes("easier") || lower.includes("smaller") ? 10 : draft.microSteps[0]?.minutes ?? 15;
+  const stepEdit = lower.match(/(?:change|rewrite|replace)\s+step\s+(\d+)\s+(?:to|as)\s+(.+)/i);
+  const steps = fallbackSteps(draft.title, count, minutes).map((step, index) => {
+    if (stepEdit && Number(stepEdit[1]) === index + 1) {
+      return { ...step, title: stepEdit[2]!.trim() };
+    }
+    return step;
+  });
+  return {
+    text: `I revised the breakdown to ${steps.length} ${minutes}-minute steps. Does this feel manageable, or should I change anything else?`,
+    action: { type: "PROPOSE_TASK", payload: { ...draft, microSteps: steps } },
+  };
+}
+
 export const askBalanceAI = createServerFn({ method: "POST" })
-  .validator((input: { message: string; history?: ChatMessage[] }) => input)
+  .validator((input: { message: string; history?: ChatMessage[] | undefined; draft?: Extract<AiAction, { type: "PROPOSE_TASK" }>['payload'] | undefined }) => input)
   .handler(async ({ data }): Promise<AiChatResponse> => {
     const { config } = await import("dotenv");
     config();
@@ -143,7 +210,7 @@ export const askBalanceAI = createServerFn({ method: "POST" })
 
     if (!apiKey) {
       // Return smart fallback command response so local demo works without requiring API keys
-      return parseFallbackCommand(message);
+      return data?.draft ? reviseFallbackCommand(message, data.draft) : parseFallbackCommand(message);
     }
 
     const history = Array.isArray(data?.history) ? data.history.slice(-8) : [];
@@ -168,11 +235,20 @@ export const askBalanceAI = createServerFn({ method: "POST" })
                 "- Never say 'I am an AI' or 'As an AI'.\n" +
                 "- Write in clear, supportive plain text (no markdown bold/asterisks).\n" +
                 "- Keep advice super short, like a text message (1-3 sentences).\n" +
-                "- If the user specifies an assignment or task (e.g. 'I just got a CS301 Machine Learning assignment due Thursday, high priority, takes 6 hours'), parse it and append a single line JSON at the end: ```json {\"action\": \"ADD_TASK\", \"title\": \"...\", \"course\": \"...\", \"due\": \"...\", \"hours\": 6, \"cat\": \"mental\"} ```\n" +
+                "- If the user specifies an assignment or task, do not create it yet. Parse it and append JSON: {\"action\": \"PROPOSE_TASK\", \"title\": \"...\", \"course\": \"...\", \"due\": \"...\", \"hours\": 6, \"cat\": \"mental\", \"microSteps\": [{\"title\": \"...\", \"minutes\": 15}]} Use a sensible number of steps from 2 to 10 based on complexity, and ask for feedback.\n" +
+                "- If the user is revising the proposed breakdown, return the complete revised PROPOSE_TASK JSON with all task fields and microSteps. Use the exact number requested when it is 2-10. If they request more than 10, ask which assignment sections need extra detail instead of generating more steps.\n" +
                 "- If the user asks to balance, rebalance, or offload: append ```json {\"action\": \"REBALANCE\"} ``` at the end.\n" +
                 "- If the user is burning out or requests recovery: append ```json {\"action\": \"TRIGGER_RECOVERY\"} ``` at the end.\n" +
                 "- If the user expresses how they are feeling regarding their mental, physical, social, time, or errands capacity: append ```json {\"action\": \"UPDATE_GAUGE\", \"vector\": \"mental\", \"val\": 80} ``` at the end (guess a suitable value 0-100 based on their sentiment if they don't specify).",
             },
+            ...(data?.draft
+              ? [
+                  {
+                    role: "system" as const,
+                    content: `The current task draft is ${JSON.stringify(data.draft)}. Treat the user's next message as feedback on this draft and return the complete revised PROPOSE_TASK JSON.`,
+                  },
+                ]
+              : []),
             ...history.map((item) => ({
               role: item.role,
               content: item.content,
@@ -186,7 +262,7 @@ export const askBalanceAI = createServerFn({ method: "POST" })
       });
 
       if (!response.ok) {
-        return parseFallbackCommand(message);
+        return data?.draft ? reviseFallbackCommand(message, data.draft) : parseFallbackCommand(message);
       }
 
       const json = (await response.json()) as {
@@ -203,27 +279,37 @@ export const askBalanceAI = createServerFn({ method: "POST" })
           : "";
 
       if (!rawContent) {
-        return parseFallbackCommand(message);
+        return data?.draft ? reviseFallbackCommand(message, data.draft) : parseFallbackCommand(message);
       }
 
       // Extract optional JSON block for action
       let action: AiAction | undefined;
-      const jsonBlockMatch = rawContent.match(/```json\s*([\s\S]*?)\s*```/);
-      let cleanText = rawContent;
+      const fencedJsonMatch = rawContent.match(/```json\s*([\s\S]*?)\s*```/i);
+      const bareJsonMatch = fencedJsonMatch ? null : rawContent.match(/\{[\s\S]*\}/);
+      const jsonContent = fencedJsonMatch?.[1] ?? bareJsonMatch?.[0];
+      let cleanText = jsonContent
+        ? rawContent.replace(fencedJsonMatch?.[0] ?? bareJsonMatch?.[0] ?? "", "").trim()
+        : rawContent;
 
-      if (jsonBlockMatch?.[1]) {
-        cleanText = rawContent.replace(jsonBlockMatch[0], "").trim();
+      if (jsonContent) {
         try {
-          const parsed = JSON.parse(jsonBlockMatch[1]);
-          if (parsed.action === "ADD_TASK") {
+          const parsed = JSON.parse(jsonContent);
+          if (parsed.action === "PROPOSE_TASK" || parsed.action === "ADD_TASK") {
             action = {
-              type: "ADD_TASK",
+              type: "PROPOSE_TASK",
               payload: {
                 title: parsed.title || "New Task",
                 course: parsed.course || "ACADEMIC",
                 due: parsed.due || "Soon",
                 hours: parsed.hours || 4,
                 cat: parsed.cat || "mental",
+                microSteps: Array.isArray(parsed.microSteps) && parsed.microSteps.length > 0
+                  ? parsed.microSteps.slice(0, 10).map((step: { title?: string; minutes?: number }, index: number) => ({
+                      id: `draft-step-${index + 1}`,
+                      title: step.title || `Micro-step ${index + 1}`,
+                      minutes: Math.max(5, Math.min(30, Number(step.minutes) || 15)),
+                    }))
+                  : fallbackSteps(parsed.title || "this task"),
               },
             };
           } else if (parsed.action === "REBALANCE") {
@@ -252,22 +338,18 @@ export const askBalanceAI = createServerFn({ method: "POST" })
 
       // If no explicit JSON action was found in text, fallback to pattern matcher for actions
       if (!action) {
-        const fallback = parseFallbackCommand(message);
+        const fallback = data?.draft ? reviseFallbackCommand(message, data.draft) : parseFallbackCommand(message);
+        if (data?.draft && !cleanText.trim()) {
+          cleanText = fallback.text;
+        }
         action = fallback.action;
       }
 
       return { text: cleanText || "I've processed your update.", action };
     } catch {
-      return parseFallbackCommand(message);
+      return data?.draft ? reviseFallbackCommand(message, data.draft) : parseFallbackCommand(message);
     }
   });
-
-export type MicroStep = {
-  id: string;
-  title: string;
-  minutes: number;
-  completed?: boolean | undefined;
-};
 
 export type DeconstructTaskResponse = {
   taskTitle: string;
@@ -460,3 +542,158 @@ export const downsizeStepAI = createServerFn({ method: "POST" })
     }
   });
 
+function wellbeingFallback(message: string): AgentChatResponse {
+  const lower = message.toLowerCase();
+  if (lower.includes("suicid") || lower.includes("kill myself") || lower.includes("hurt myself")) {
+    return {
+      agent: "wellbeing",
+      text: "I’m really sorry you’re carrying this right now. Please contact local emergency services or a crisis line, and tell someone you trust immediately so you’re not alone with this.",
+    };
+  }
+  if (lower.includes("break") || lower.includes("exhausted") || lower.includes("burnout")) {
+    return {
+      agent: "wellbeing",
+      text: "That sounds like your system is asking for a real pause, not more pressure. Let’s take one small reset first—water, a slower breath, and a few minutes away from the screen.",
+      action: { type: "TRIGGER_RECOVERY" },
+    };
+  }
+  return {
+    agent: "wellbeing",
+    text: "I hear you. What feels heaviest right now—the emotion itself, the amount on your plate, or not knowing where to start? We can take it one piece at a time.",
+  };
+}
+
+function taskFallback(message: string, taskDraft?: Extract<AiAction, { type: "PROPOSE_TASK" }>["payload"] | undefined): AgentChatResponse {
+  const lower = message.toLowerCase();
+  const taskIntent = /assignment|task|exam|project|course|step|breakdown|deadline|due|study/.test(lower);
+  if (!taskIntent) {
+    return {
+      agent: "task",
+      text: taskDraft ? "I’ll keep the task draft ready while you focus on what you’re feeling." : "I can help turn an assignment or responsibility into a clear, manageable plan.",
+    };
+  }
+  return taskDraft ? { agent: "task", ...reviseFallbackCommand(message, taskDraft) } : { agent: "task", ...parseFallbackCommand(message) };
+}
+
+function parseAgentJson(rawContent: string, agent: AgentId): AgentChatResponse {
+  const fenced = rawContent.match(/```json\s*([\s\S]*?)\s*```/i);
+  const bare = fenced ? null : rawContent.match(/\{[\s\S]*\}/);
+  const jsonContent = fenced?.[1] ?? bare?.[0];
+  let text = jsonContent ? rawContent.replace(fenced?.[0] ?? bare?.[0] ?? "", "").trim() : rawContent.trim();
+
+  if (jsonContent) {
+    try {
+      const parsed = JSON.parse(jsonContent) as {
+        action?: unknown;
+        title?: unknown;
+        course?: unknown;
+        due?: unknown;
+        hours?: unknown;
+        cat?: unknown;
+        microSteps?: unknown;
+        vector?: unknown;
+        val?: unknown;
+      };
+      const actionName = parsed.action;
+      if (agent === "task" && (actionName === "PROPOSE_TASK" || actionName === "ADD_TASK")) {
+        const rawSteps = Array.isArray(parsed.microSteps) ? parsed.microSteps : [];
+        const microSteps: MicroStep[] = rawSteps.slice(0, 10).map((step, index) => {
+          const item = step as { title?: unknown; minutes?: unknown };
+          return {
+            id: `draft-step-${index + 1}`,
+            title: typeof item.title === "string" && item.title.trim() ? item.title.trim() : `Micro-step ${index + 1}`,
+            minutes: Math.max(5, Math.min(30, Number(item.minutes) || 15)),
+          };
+        });
+        return {
+          agent,
+          text: text || "I drafted a task breakdown for you. Tell me what you want changed.",
+          action: {
+            type: "PROPOSE_TASK",
+            payload: {
+              title: typeof parsed.title === "string" ? parsed.title : "New Task",
+              course: typeof parsed.course === "string" ? parsed.course : "ACADEMIC",
+              due: typeof parsed.due === "string" ? parsed.due : "Soon",
+              hours: typeof parsed.hours === "number" ? parsed.hours : 4,
+              cat: parsed.cat === "physical" || parsed.cat === "social" || parsed.cat === "errands" ? parsed.cat : "mental",
+              microSteps: microSteps.length > 0 ? microSteps : fallbackSteps(typeof parsed.title === "string" ? parsed.title : "this task"),
+            },
+          },
+        };
+      }
+      if (agent === "wellbeing" && actionName === "UPDATE_GAUGE") {
+        const vector = parsed.vector;
+        const validVector = vector === "mental" || vector === "time" || vector === "physical" || vector === "social" || vector === "errands" ? vector : "mental";
+        const value = typeof parsed.val === "number" ? Math.max(0, Math.min(100, parsed.val)) : 85;
+        return { agent, text, action: { type: "UPDATE_GAUGE", payload: { vector: validVector, val: value } } };
+      }
+      if (agent === "wellbeing" && actionName === "TRIGGER_RECOVERY") {
+        return { agent, text, action: { type: "TRIGGER_RECOVERY" } };
+      }
+    } catch {
+      // Treat an invalid structured response as ordinary text.
+    }
+  }
+  return { agent, text: text || "I’m here with you. Tell me a little more about what’s going on." };
+}
+
+async function requestAgentResponse(
+  agent: AgentId,
+  message: string,
+  history: ChatMessage[],
+  taskDraft?: Extract<AiAction, { type: "PROPOSE_TASK" }>["payload"] | undefined,
+): Promise<AgentChatResponse> {
+  const { config } = await import("dotenv");
+  config();
+  const apiKey = process.env["GROQ_API_KEY"] ?? process.env["OPENAI_API_KEY"];
+  if (!apiKey) {
+    return agent === "task" ? taskFallback(message, taskDraft) : wellbeingFallback(message);
+  }
+
+  const model = process.env["GROQ_MODEL"] ?? process.env["OPENAI_MODEL"] ?? "openai/gpt-oss-120b";
+  const baseUrl = (process.env["GROQ_BASE_URL"] ?? process.env["OPENAI_BASE_URL"] ?? "https://api.groq.com/openai/v1").replace(/\/$/, "");
+  const taskInstructions = "You are the BalanceAI Task Agent. Own assignments, task planning, and micro-step breakdowns. Never provide wellbeing actions. Do not create tasks immediately. For task requests, respond briefly and append JSON with action PROPOSE_TASK, task fields, and 2-10 microSteps. If more than 10 are requested, ask which assignment sections need extra detail. If a task draft is provided, revise it only when the user's message is feedback about that task; for emotional or unrelated messages, acknowledge that the draft remains available and return no action.";
+  const wellbeingInstructions = "You are the BalanceAI Wellbeing Agent. Own emotional support, feelings, stress, capacity check-ins, and recovery. Respond empathetically without diagnosing or pretending to be a therapist. You may append JSON UPDATE_GAUGE or TRIGGER_RECOVERY when clearly appropriate. For serious self-harm signals, provide supportive guidance to contact emergency or crisis help and do not claim to solve the crisis.";
+  const draftContext = taskDraft ? `\nCurrent task draft: ${JSON.stringify(taskDraft)}` : "";
+
+  try {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        temperature: 0.4,
+        messages: [
+          { role: "system", content: `${agent === "task" ? taskInstructions : wellbeingInstructions}${draftContext}` },
+          ...history.slice(-8).map((item) => ({ role: item.role, content: item.content })),
+          { role: "user", content: message },
+        ],
+      }),
+    });
+    if (!response.ok) throw new Error("Agent request failed");
+    const json = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const raw = json.choices?.[0]?.message?.content;
+    if (!raw) throw new Error("Agent returned no content");
+    return parseAgentJson(raw, agent);
+  } catch {
+    return agent === "task" ? taskFallback(message, taskDraft) : wellbeingFallback(message);
+  }
+}
+
+export const askMultiAgentAI = createServerFn({ method: "POST" })
+  .validator((input: {
+    message: string;
+    history?: ChatMessage[] | undefined;
+    mode?: ChatMode | undefined;
+    taskDraft?: Extract<AiAction, { type: "PROPOSE_TASK" }>["payload"] | undefined;
+  }) => input)
+  .handler(async ({ data }): Promise<MultiAgentChatResponse> => {
+    const message = (data?.message ?? "").trim();
+    if (!message) throw new Error("Please type or speak a message before sending it to BalanceAI.");
+    const mode = data?.mode ?? "both";
+    const agents: AgentId[] = mode === "both" ? ["task", "wellbeing"] : [mode];
+    const responses = await Promise.all(
+      agents.map((agent) => requestAgentResponse(agent, message, data?.history ?? [], agent === "task" ? data?.taskDraft : undefined)),
+    );
+    return { responses };
+  });
