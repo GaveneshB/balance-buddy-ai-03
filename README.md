@@ -68,7 +68,9 @@ These results support a product that detects capacity pressure early and reduces
 
 ## Solution
 
-Balance Buddy AI acts as a supportive workload companion rather than another passive task list. It:
+Balance Buddy AI is a capacity-aware workload companion built to help university students prevent burnout before overload becomes a crisis. Instead of only tracking deadlines, it evaluates mental, time, physical, social, and errands capacity to help students decide what they can realistically handle. Its conversational AI turns natural language into tasks and actions, while its workload balancer protects overloaded schedules by suggesting deferrals and recovery time. The platform combines practical workload support with neurodiverse-friendly focus tools so students can make progress without adding more decision fatigue.
+
+### Feature Set
 
 - Converts natural language or speech into structured tasks.
 - Estimates the capacity impact of new work.
@@ -77,6 +79,12 @@ Balance Buddy AI acts as a supportive workload companion rather than another pas
 - Locks task creation during a short recovery window when capacity is critical.
 - Breaks large assignments into small, actionable steps.
 - Provides a guided focus room with timers, recovery tools, and soundscapes.
+- Tracks five workload vectors: Mental, Time, Physical, Social, and Errands.
+- Executes AI actions such as adding tasks, updating capacity gauges, rebalancing work, and triggering recovery.
+- Supports ADHD Mode with micro-actions, two-minute starters, Focus Points, and progress rewards.
+- Supports Mild Autism Mode with reduced stimulation, predictable layouts, and calmer visual feedback.
+- Provides a Symbiotic Avatar that reflects workload pressure and offers supportive companion feedback.
+- Persists tasks, preferences, capacity state, and progress locally in the browser.
 
 ## Ideation Process and Idea Evolution
 
