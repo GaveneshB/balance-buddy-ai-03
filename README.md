@@ -12,23 +12,206 @@
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Problem Statement](#problem-statement)
-3. [Market Validation](#market-validation)
-4. [Solution](#solution)
-5. [Ideation Process and Idea Evolution](#ideation-process-and-idea-evolution)
-6. [Mentor Consultations](#mentor-consultations)
-7. [Core Features](#core-features)
-8. [Application Flow and Architecture](#application-flow-and-architecture)
-9. [Neurodiverse UX Accessibility](#neurodiverse-ux-accessibility)
-10. [Design Direction](#design-direction)
-11. [Tech Stack](#tech-stack)
-12. [Privacy and Data Handling](#privacy-and-data-handling)
-13. [Project Structure](#project-structure)
-14. [Local Setup](#local-setup)
-15. [Current Scope and Limitations](#current-scope-and-limitations)
-16. [Future Roadmap](#future-roadmap)
-17. [Design Links and Presentation](#design-links-and-presentation)
+1. [Project Overview](#1-project-overview)
+2. [Ideation and Process](#2-ideation-and-process)
+3. [Design and Prototype](#3-design-and-prototype)
+4. [What Makes It Different](#4-what-makes-it-different)
+5. [Technical Architecture and Feasibility](#5-technical-architecture-and-feasibility)
+6. [Detailed Product Documentation](#detailed-product-documentation)
+
+## 1. Project Overview
+
+### The Problem
+
+University students balance academic deadlines with social commitments, physical needs, part-time work, and everyday errands. Existing productivity tools such as Todoist, Google Calendar, and standard Pomodoro apps are useful for recording tasks and deadlines, but they are mostly **task-aware and capacity-blind**: they do not understand whether a student has enough mental, physical, social, or time capacity to complete everything. This creates cumulative overload, decision fatigue, and guilt around declining extra commitments.
+
+The main stakeholders are students, student support and counselling teams, universities, families or trusted supporters, and future employers supporting graduate wellbeing. Our initial users are university students who need low-friction help deciding what to do now, what to postpone, and when to recover. Our survey of tertiary students in Malaysia found that 74% experience severe overload before the week ends without realizing they are running on empty, 65% experience sudden burnout spikes without an early warning system, and 80% feel guilty declining extra tasks.
+
+### Our Solution
+
+Balance Buddy AI is a capacity-aware workload companion built to help university students prevent burnout before overload becomes a crisis. Instead of only tracking deadlines, it evaluates mental, time, physical, social, and errands capacity to help students decide what they can realistically handle. Its conversational AI turns natural language or speech into tasks and actions, while its workload balancer protects overloaded schedules through deferrals, editable decline messages, and recovery time. The platform combines practical workload support with neurodiverse-friendly focus tools so students can make progress without adding more decision fatigue.
+
+### Feature Set
+
+- Five-vector capacity tracking: Mental, Time, Physical, Social, and Errands.
+- Conversational AI task entry through text or browser voice input.
+- Automatic task extraction, categorization, workload weighting, and capacity updates.
+- Autonomous workload balancing with approve, edit, and undo controls.
+- Editable polite decline-message drafts for social or non-urgent commitments.
+- Recovery lockout that temporarily prevents new task creation during critical load.
+- Capacity-aware task board with active, urgent, and offloaded task views.
+- AI assignment deconstruction into manageable micro-steps.
+- Focus sprint room with timers, task clock-in, custom steps, and progress feedback.
+- Two-minute starter actions for moments of ADHD-related task paralysis.
+- Guided box breathing and recovery tools.
+- Ambient brown noise, rain, binaural tones, volume, mute, and completion chimes.
+- Symbiotic Avatar that reflects workload pressure and provides companion feedback.
+- Normal, ADHD, and Mild Autism interface modes.
+- Local browser persistence for tasks, preferences, capacity state, and progress.
+
+## 2. Ideation & Process
+
+### 2.1 Ideas We Considered
+
+Chosen ideas are listed first. Dropped or deferred ideas remain documented to show how the product scope evolved.
+
+| Idea | Why it was dropped / kept |
+| --- | --- |
+| **Five-vector capacity engine (Chosen)** | Kept because deadline lists alone do not show whether a student has enough mental, physical, social, or time capacity. |
+| **Conversational AI task and capacity entry (Chosen)** | Kept because manual forms and multiple sliders create friction for overloaded students. |
+| **Autonomous workload balancer (Chosen)** | Kept because students need practical intervention, not only a warning that their workload is high. |
+| **Editable decline-message drafts (Chosen)** | Kept because boundary-setting and guilt are part of the workload problem. |
+| **Recovery lockout (Chosen)** | Kept because a reminder can be ignored; a short lockout creates protected recovery time. |
+| **AI micro-step focus room (Chosen)** | Kept because large assignments can cause paralysis, especially for ADHD workflows. |
+| **Neurodiverse interface modes (Chosen)** | Kept because one visual and interaction style cannot support every cognitive or sensory need. |
+| Manual capacity forms and energy sliders | Dropped as the primary workflow because they add cognitive load; baseline preferences remain part of the product direction. |
+| Static Pomodoro-only timer | Dropped as a complete solution because timing work does not decide what should be postponed or broken down. Timer functionality was retained inside the richer sprint room. |
+| Push-notification-only burnout warnings | Dropped because passive notifications are easy to ignore and do not reduce decision fatigue. |
+| Live Google Calendar integration | Deferred because the MVP focuses on local capacity-aware decisions; it is planned for the roadmap. |
+| Wearable biometric integration | Deferred because it requires device permissions, privacy design, and additional validation beyond the hackathon scope. |
+| B2B university analytics dashboard | Deferred because it requires consent, anonymization, institutional workflows, and a larger validated dataset. |
+
+### 2.2 Ideation Boards
+
+No image board files are currently stored in this repository, so the main ideation boards are represented below as readable Markdown diagrams.
+
+#### Problem Tree
+
+```text
+Root problem: Students are task-aware but capacity-blind
+            |
+    -------------------------------------------------
+    |                       |                       |
+  Cumulative overload     Decision fatigue        Boundary guilt
+    |                       |                       |
+  Mental + time +        Too many manual         Difficulty saying no
+  social commitments     inputs and choices      to extra commitments
+            |
+        Burnout and shutdown
+```
+
+This board connects the visible symptom, burnout, to the workload and decision problems that create it.
+
+#### Solution Flow
+
+```text
+Natural language or voice input
+        |
+        v
+Task extraction + five-vector capacity update
+        |
+        v
+Capacity status and workload impact
+     |                    |
+     v                    v
+Focus micro-steps       Rebalance and defer
+     |                    |
+     v                    v
+Sprint room + recovery  Editable decline draft
+```
+
+This flow shows how the team moved from a passive task list to an assistant that can interpret, recommend, and execute workload actions.
+
+#### Idea Evolution Board
+
+```text
+Manual forms
+  -> conversational input
+  -> autonomous rebalancing
+  -> recovery lockout
+  -> ADHD and Mild Autism modes
+  -> micro-step focus room
+```
+
+This board captures the main pivots created by user friction and mentor feedback.
+
+### 2.3 Mentor Consultation
+
+Specific mentor names and consultation dates were not included in the project files, so they are left as to-be-filled fields rather than invented.
+
+| Date | Mentor | Feedback Received | What Was Changed |
+| --- | --- | --- | --- |
+| To be added | To be added | Manual entry and multiple sliders create too much friction for an exhausted student. | Added conversational task extraction and natural capacity updates. |
+| To be added | To be added | Warnings alone are passive and leave the student to make every difficult decision. | Added autonomous deferral suggestions, editable decline drafts, and one-tap approval. |
+| To be added | To be added | The interface should support different attention and sensory needs. | Added Normal, ADHD, and Mild Autism modes with micro-actions and calmer presentation. |
+| To be added | To be added | The demo should remain usable when an external AI service is unavailable. | Added local heuristic parsing and offline micro-step fallbacks. |
+
+## 3. Design & Prototype
+
+**UI Prototype:** [Balance Buddy AI deployed prototype](https://balance-buddy-ai-03.vercel.app)
+
+The prototype is a mobile-first React application with a glassmorphic interface and the following key screens:
+
+1. **Dashboard:** Shows the current stress score, capacity status, companion avatar, focus sprint entry point, and AI chat entry point.
+2. **AI Command Chat:** Accepts text or speech, parses tasks, updates capacity, and executes balancing or recovery actions.
+3. **Task Board:** Displays urgent and offloaded work, filters tasks, previews capacity impact, and starts focus sprints.
+4. **Workload Balancer:** Shows suggested deferrals and editable decline text before the student approves changes.
+5. **Focus Sprint Room:** Provides timers, AI micro-steps, custom steps, soundscapes, breathing, and Focus Points.
+6. **Profile and Accessibility:** Provides Normal, ADHD, and Mild Autism modes, theme settings, weekly load insights, and recovery progress.
+
+The presentation deck is available on [Canva](https://www.canva.com/design/DAHUJpuvOmw/81yK8mFGs1uWb3qc5GKXLQ/edit). The deployed link should be opened in an incognito window to test the public experience.
+
+## 4. What Makes It Different
+
+| Differentiator | What is novel about the Balance Buddy AI approach |
+| --- | --- |
+| Capacity before productivity | The app weighs mental, time, physical, social, and errands load instead of only counting deadlines. |
+| Action-taking AI | The assistant can add tasks, update gauges, trigger recovery, and rebalance work instead of only giving suggestions. |
+| Guilt-free boundary support | Editable decline drafts turn an emotionally difficult decision into a reviewable, user-controlled action. |
+| Recovery as a product behavior | A short recovery lock protects the student from immediately adding more work at critical load. |
+| Stress-mirror companion | The avatar communicates workload pressure in a softer, more approachable way than an alert or red notification. |
+| Neurodiverse workflows | ADHD micro-actions and Mild Autism low-stimulation presentation are first-class modes, not afterthoughts. |
+| Offline resilience | Local command parsing and micro-step generation keep core demo workflows available without an external AI API. |
+
+## 5. Technical Architecture & Feasibility
+
+### Tech Stack
+
+| Layer | Technology | Purpose and feasibility |
+| --- | --- | --- |
+| Frontend | React 19, Vite, TypeScript | Fast, component-based UI with a mature ecosystem. |
+| Styling | Tailwind CSS 4 and custom CSS | Responsive layouts, themes, glass panels, and accessibility mode styling. |
+| Routing | TanStack Router | Type-safe route handling for dashboard, tasks, chat, balancer, profile, and sprint screens. |
+| Server runtime | TanStack React Start with Nitro | SSR and server functions for deployment to Vercel. |
+| AI API | Groq or OpenAI-compatible chat completions | Conversational task parsing and AI task deconstruction; key remains server-side. |
+| Voice | Web Speech API | Optional hands-free task entry where browser support is available. |
+| Audio | Web Audio API | Generates soundscapes and completion chimes in the browser without external files. |
+| Persistence | Browser LocalStorage | Zero-setup MVP persistence for tasks, preferences, capacity, and progress. |
+| Metrics | Local metrics store and chart rendering | Provides local weekly load insights without a remote database. |
+| Hosting | Vercel | Runs the Nitro SSR output and supports private environment variables for the AI API key. |
+
+### System Architecture
+
+```mermaid
+flowchart LR
+    Browser[React client] --> Router[TanStack Router]
+    Router --> Routes[Dashboard, Chat, Tasks, Balancer, Profile, Sprint]
+    Routes --> State[Shared App State]
+    State --> LocalStorage[Browser LocalStorage]
+    State --> Metrics[Local Metrics]
+    Chat[AI Command Chat] --> ServerFn[TanStack server function]
+    ServerFn --> AI[Groq or OpenAI-compatible API]
+    ServerFn -. API unavailable .-> Fallback[Local heuristic fallback]
+    Sprint[Focus Sprint Room] --> Audio[Web Audio API]
+    Vercel[Vercel + Nitro SSR] --> Browser
+```
+
+The AI key is read only from server-side environment variables and is never exposed through `VITE_*` client variables. The app remains functional through local fallbacks when the external provider is unavailable.
+
+### Build Plan & Scope
+
+The hackathon MVP scope is intentionally focused:
+
+- Implement the five-vector capacity engine and shared local state.
+- Provide a working conversational task and capacity interface.
+- Demonstrate autonomous deferral, decline drafting, and recovery lockout flows.
+- Provide a usable task board and focus sprint room.
+- Support Normal, ADHD, and Mild Autism modes.
+- Validate the deployment through Vercel SSR output and private environment variables.
+
+The following are outside the MVP build scope and remain roadmap items: live two-way calendar integrations, wearable biometrics, authenticated cloud accounts, institution-wide analytics, and native mobile applications.
+
+## Detailed Product Documentation
 
 ## Overview
 
@@ -68,7 +251,9 @@ These results support a product that detects capacity pressure early and reduces
 
 ## Solution
 
-Balance Buddy AI acts as a supportive workload companion rather than another passive task list. It:
+Balance Buddy AI is a capacity-aware workload companion built to help university students prevent burnout before overload becomes a crisis. Instead of only tracking deadlines, it evaluates mental, time, physical, social, and errands capacity to help students decide what they can realistically handle. Its conversational AI turns natural language into tasks and actions, while its workload balancer protects overloaded schedules by suggesting deferrals and recovery time. The platform combines practical workload support with neurodiverse-friendly focus tools so students can make progress without adding more decision fatigue.
+
+### Feature Set
 
 - Converts natural language or speech into structured tasks.
 - Estimates the capacity impact of new work.
@@ -77,6 +262,12 @@ Balance Buddy AI acts as a supportive workload companion rather than another pas
 - Locks task creation during a short recovery window when capacity is critical.
 - Breaks large assignments into small, actionable steps.
 - Provides a guided focus room with timers, recovery tools, and soundscapes.
+- Tracks five workload vectors: Mental, Time, Physical, Social, and Errands.
+- Executes AI actions such as adding tasks, updating capacity gauges, rebalancing work, and triggering recovery.
+- Supports ADHD Mode with micro-actions, two-minute starters, Focus Points, and progress rewards.
+- Supports Mild Autism Mode with reduced stimulation, predictable layouts, and calmer visual feedback.
+- Provides a Symbiotic Avatar that reflects workload pressure and offers supportive companion feedback.
+- Persists tasks, preferences, capacity state, and progress locally in the browser.
 
 ## Ideation Process and Idea Evolution
 
