@@ -92,9 +92,15 @@ export function ChatScreen() {
   const [messages, setMessages] = useState<MessageItem[]>([
     {
       role: "assistant",
+      agent: "task",
+      content:
+        "Hey Dhanesh! I’m your Task Agent. Tell me about any assignments, deadlines, or projects, and I'll break them down into actionable micro-steps for you.",
+    },
+    {
+      role: "assistant",
       agent: "wellbeing",
       content:
-        "Hey Dhanesh! I’m connected to your 5-vector capacity engine. You can type or speak tasks naturally like 'I just got a CS301 ML assignment due Thursday, 6h' or tell me 'balance my day'. What’s on your mind?",
+        "And I’m your Wellbeing Agent! I monitor your 5-vector capacity, energy levels, and stress to protect you from burnout. How are you feeling today?",
     },
   ]);
 

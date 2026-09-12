@@ -542,7 +542,16 @@ export const downsizeStepAI = createServerFn({ method: "POST" })
     }
   });
 
-function wellbeingFallback(message: string): AgentChatResponse {
+function isTaskCreationIntent(message: string): boolean {
+  const lower = message.toLowerCase();
+  const hasAction = /\b(create|make|add|generate|build|draft|plan|break down|breakdown|schedule|give me|set up|start)\b/i.test(lower);
+  const hasTask = /\b(task|tasks|assignment|assignments|todo|to-do|todos|homework|project|microstep|steps|deadline)\b/i.test(lower);
+  const hasTaskLogging = /\b(due\b|priority\b|\d+\s*hours?|\d+\s*h\b)/i.test(lower) && /\b(assignment|task|exam|project)\b/i.test(lower);
+  const hasFeeling = /\b(feel|feeling|tired|exhaust|stress|burnout|overwhelm|anxious|heavy|pause|break)\b/i.test(lower);
+  return ((hasAction && hasTask) || hasTaskLogging) && !hasFeeling;
+}
+
+function wellbeingFallback(message: string, mode: ChatMode = "wellbeing"): AgentChatResponse {
   const lower = message.toLowerCase();
   if (lower.includes("suicid") || lower.includes("kill myself") || lower.includes("hurt myself")) {
     return {
@@ -555,6 +564,18 @@ function wellbeingFallback(message: string): AgentChatResponse {
       agent: "wellbeing",
       text: "That sounds like your system is asking for a real pause, not more pressure. Let’s take one small reset first—water, a slower breath, and a few minutes away from the screen.",
       action: { type: "TRIGGER_RECOVERY" },
+    };
+  }
+  if (isTaskCreationIntent(message)) {
+    if (mode === "both") {
+      return {
+        agent: "wellbeing",
+        text: "Taking on new assignments can be demanding on your energy. The Task Agent is handling the plan and breakdown for you—remember to pace yourself, stay hydrated, and take breaks between focus blocks!",
+      };
+    }
+    return {
+      agent: "wellbeing",
+      text: "Task creation and assignment planning are handled exclusively by the Task Agent. Please switch to the Task Agent (or Both Agents) tab above to create and break down this task! I'm here to support your wellbeing, stress levels, and capacity—how are you feeling about taking on this workload?",
     };
   }
   return {
@@ -575,7 +596,7 @@ function taskFallback(message: string, taskDraft?: Extract<AiAction, { type: "PR
   return taskDraft ? { agent: "task", ...reviseFallbackCommand(message, taskDraft) } : { agent: "task", ...parseFallbackCommand(message) };
 }
 
-function parseAgentJson(rawContent: string, agent: AgentId): AgentChatResponse {
+function parseAgentJson(rawContent: string, agent: AgentId, userMessage: string = "", mode: ChatMode = "both"): AgentChatResponse {
   const fenced = rawContent.match(/```json\s*([\s\S]*?)\s*```/i);
   const bare = fenced ? null : rawContent.match(/\{[\s\S]*\}/);
   const jsonContent = fenced?.[1] ?? bare?.[0];
@@ -634,6 +655,20 @@ function parseAgentJson(rawContent: string, agent: AgentId): AgentChatResponse {
       // Treat an invalid structured response as ordinary text.
     }
   }
+
+  if (agent === "wellbeing") {
+    const containsAssignmentGeneration =
+      /##\s*Assignment|###\s*\*?Objective\*?|predicts? house sale prices|^\s*-\s*\[\s*\]|^\s*\d+\.\s*(Step|Phase|Task)/im.test(text);
+    const failedToRedirect = isTaskCreationIntent(userMessage) && !/task agent/i.test(text);
+    if (containsAssignmentGeneration || failedToRedirect) {
+      if (mode === "both") {
+        text = "Taking on new assignments can be demanding on your energy. The Task Agent is handling the plan and breakdown for you—remember to pace yourself, stay hydrated, and take breaks between focus blocks!";
+      } else {
+        text = "Task creation and assignment planning are handled exclusively by the Task Agent. Please switch to the Task Agent (or Both Agents) tab above to generate and break down this task! I'm here to support your wellbeing and stress levels—how are you feeling about taking on this workload?";
+      }
+    }
+  }
+
   return { agent, text: text || "I’m here with you. Tell me a little more about what’s going on." };
 }
 
@@ -642,19 +677,25 @@ async function requestAgentResponse(
   message: string,
   history: ChatMessage[],
   taskDraft?: Extract<AiAction, { type: "PROPOSE_TASK" }>["payload"] | undefined,
+  mode: ChatMode = "both",
 ): Promise<AgentChatResponse> {
   const { config } = await import("dotenv");
   config();
   const apiKey = process.env["GROQ_API_KEY"] ?? process.env["OPENAI_API_KEY"];
   if (!apiKey) {
-    return agent === "task" ? taskFallback(message, taskDraft) : wellbeingFallback(message);
+    return agent === "task" ? taskFallback(message, taskDraft) : wellbeingFallback(message, mode);
   }
 
   const model = process.env["GROQ_MODEL"] ?? process.env["OPENAI_MODEL"] ?? "openai/gpt-oss-120b";
   const baseUrl = (process.env["GROQ_BASE_URL"] ?? process.env["OPENAI_BASE_URL"] ?? "https://api.groq.com/openai/v1").replace(/\/$/, "");
   const taskInstructions = "You are the BalanceAI Task Agent. Own assignments, task planning, and micro-step breakdowns. Never provide wellbeing actions. Do not create tasks immediately. For task requests, respond briefly and append JSON with action PROPOSE_TASK, task fields, and 2-10 microSteps. If more than 10 are requested, ask which assignment sections need extra detail. If a task draft is provided, revise it only when the user's message is feedback about that task; for emotional or unrelated messages, acknowledge that the draft remains available and return no action.";
-  const wellbeingInstructions = "You are the BalanceAI Wellbeing Agent. Own emotional support, feelings, stress, capacity check-ins, and recovery. Respond empathetically without diagnosing or pretending to be a therapist. You may append JSON UPDATE_GAUGE or TRIGGER_RECOVERY when clearly appropriate. For serious self-harm signals, provide supportive guidance to contact emergency or crisis help and do not claim to solve the crisis.";
+  const wellbeingInstructions = "You are the BalanceAI Wellbeing Agent. Your SOLE role is user wellbeing, emotional support, stress management, 5-vector capacity check-ins, and burnout recovery. STRICT BOUNDARY: You MUST NEVER create tasks, plan assignments, generate homework/syllabi, produce to-do lists, or outline study steps. Task creation and assignment breakdowns are handled EXCLUSIVELY by the Task Agent. If the user asks you to create, plan, or break down a task or assignment: in Wellbeing mode, politely refuse and instruct them to switch to the Task Agent or Both Agents tab, then offer emotional/wellbeing support for their workload; in Both Agents mode, let the Task Agent output the plan and only provide a brief check-in on pacing and capacity. Respond empathetically without diagnosing or pretending to be a therapist. You may append JSON UPDATE_GAUGE or TRIGGER_RECOVERY when clearly appropriate. For serious self-harm signals, provide supportive guidance to contact emergency or crisis help and do not claim to solve the crisis.";
   const draftContext = taskDraft ? `\nCurrent task draft: ${JSON.stringify(taskDraft)}` : "";
+  const modeContext = agent === "wellbeing"
+    ? (mode === "both"
+        ? "\n[Current mode: Both Agents active. The Task Agent is handling task planning. Do NOT output any task plan or steps; provide only wellbeing/stress support.]"
+        : "\n[Current mode: Dedicated Wellbeing Agent active. If the user asks to create or plan a task/assignment, do NOT create it. Politely direct them to the Task Agent tab and offer wellbeing support.]")
+    : "";
 
   try {
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -664,7 +705,7 @@ async function requestAgentResponse(
         model,
         temperature: 0.4,
         messages: [
-          { role: "system", content: `${agent === "task" ? taskInstructions : wellbeingInstructions}${draftContext}` },
+          { role: "system", content: `${agent === "task" ? taskInstructions : wellbeingInstructions}${draftContext}${modeContext}` },
           ...history.slice(-8).map((item) => ({ role: item.role, content: item.content })),
           { role: "user", content: message },
         ],
@@ -674,9 +715,9 @@ async function requestAgentResponse(
     const json = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const raw = json.choices?.[0]?.message?.content;
     if (!raw) throw new Error("Agent returned no content");
-    return parseAgentJson(raw, agent);
+    return parseAgentJson(raw, agent, message, mode);
   } catch {
-    return agent === "task" ? taskFallback(message, taskDraft) : wellbeingFallback(message);
+    return agent === "task" ? taskFallback(message, taskDraft) : wellbeingFallback(message, mode);
   }
 }
 
@@ -693,7 +734,7 @@ export const askMultiAgentAI = createServerFn({ method: "POST" })
     const mode = data?.mode ?? "both";
     const agents: AgentId[] = mode === "both" ? ["task", "wellbeing"] : [mode];
     const responses = await Promise.all(
-      agents.map((agent) => requestAgentResponse(agent, message, data?.history ?? [], agent === "task" ? data?.taskDraft : undefined)),
+      agents.map((agent) => requestAgentResponse(agent, message, data?.history ?? [], agent === "task" ? data?.taskDraft : undefined, mode)),
     );
     return { responses };
   });
