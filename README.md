@@ -300,16 +300,18 @@ Our product evolved through a series of design and implementation pivots:
 
 ## Mentor Consultations
 
-Mentor feedback shaped the project around one central insight: **a burnout-prevention tool must reduce cognitive load, not create another system to maintain**.
+### Mentor Feedback
 
-The main consultation outcomes were:
+**Mentor:** Zack Khong  
+**Date:** 10 September 2026
 
-- Replace high-friction form entry with natural conversational input.
-- Make the assistant capable of taking useful actions, not only displaying advice.
-- Give boundary-setting support through editable decline templates.
-- Make recovery an enforceable workflow through a temporary lockout.
-- Design explicit accessibility modes instead of expecting one visual style to work for everyone.
-- Keep an offline heuristic fallback so a demo or user is not blocked by an unavailable AI service.
+| Feedback Received | What Was Changed |
+| :--- | :--- |
+| Our task breakdown should be the main feature | Built our entire webpage around this feature |
+| Our main screen should have the avatar and the task breakdown | Removed other unnecessary widgets and added avatar and task breakdown on the main screen |
+| No need to present the insight page | Removed the 'Insight' tab from the web app. |
+| Better to use natural language to add new task | Used AI Chatbot to make it natural for students to add new task. |
+| Make ui less scrollable | Removed unnecessary widgets and made the UI more cleaner to ensure user need to scroll less |
 
 ## Core Features
 
