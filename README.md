@@ -569,6 +569,8 @@ npm run format       # Format the repository with Prettier
 - **Product concept:** Symbiotic AI stress-mirror companion for student workload protection
 - **Repository:** This project
 - **Deployed link:** [Balance Buddy AI on Vercel](https://balance-buddy-ai-03.vercel.app)
+- **Youtube link:** [Balance Buddy AI on Youtube](https://youtu.be/RRWhO30WiYk)
+
 
 ## Team
 
